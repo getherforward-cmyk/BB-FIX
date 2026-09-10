@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BB Fix — ระบบแจ้งซ่อมโรงเรียน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#EFF8F1; --bg-soft:#E4F3E8; --ink:#173821; --ink-soft:#4C6B57; --ink-faint:#7C9686;
+    --green-deep:#1F6E43; --green:#4CAF6D; --green-bright:#6BCB84; --green-line:#2E7D4F;
+    --amber:#B9791E; --amber-bg:#FCF1DD; --blue:#2E6F96; --blue-bg:#E4F1F8;
+    --coral:#D85A34; --coral-bg:#FDE7DE; --white:#FFFFFF; --border:#D8ECDD;
+    --shadow:0 4px 16px rgba(31,110,67,0.09); --radius-leaf:22px 22px 22px 6px;
+    --font-head:'Mitr',sans-serif; --font-body:'Sarabun',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;}
+  .shell{max-width:640px; margin:0 auto; min-height:100vh; background:var(--bg); position:relative;}
+  h1,h2,h3{font-family:var(--font-head); margin:0; color:var(--ink); font-weight:600;}
+  button{font-family:var(--font-body); cursor:pointer;}
+  input,textarea,select{font-family:var(--font-body); font-size:16px;}
+  input:focus-visible,textarea:focus-visible,button:focus-visible,select:focus-visible{outline:2.5px solid var(--green-deep); outline-offset:2px;}
+  a{color:var(--green-deep);}
+  .center-screen{min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 24px; text-align:center; gap:18px;}
+  .bubble{position:absolute; border-radius:50%; background:radial-gradient(circle at 32% 30%, rgba(255,255,255,0.85), rgba(107,203,132,0.18)); z-index:0;}
+  .brand-title{font-size:34px; letter-spacing:0.5px; color:var(--green-deep);}
+  .brand-tagline{color:var(--ink-soft); font-size:15px; max-width:280px; margin-top:-6px;}
+  .onboard-card{position:relative; z-index:1; background:var(--white); border-radius:26px 26px 26px 8px; box-shadow:var(--shadow); padding:28px 24px; width:100%; max-width:340px;}
+  .field-label{display:block; text-align:left; font-size:14px; color:var(--ink-soft); margin:0 0 6px 4px;}
+  .text-input{width:100%; padding:13px 14px; border-radius:14px; border:1.5px solid var(--border); background:var(--bg); color:var(--ink);}
+  .text-input:focus-visible{border-color:var(--green-deep);}
+  .btn{border:none; border-radius:16px; padding:14px 20px; font-size:16px; font-weight:600; font-family:var(--font-head); transition:transform .12s ease;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--green-deep); color:#fff; width:100%;}
+  .btn-primary:disabled{opacity:0.55; cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--green-deep); border:1.5px solid var(--green-deep);}
+  .role-btn{position:relative; z-index:1; display:flex; align-items:center; gap:14px; width:100%; max-width:340px; background:var(--white); border:1.5px solid var(--border); border-radius:var(--radius-leaf); padding:16px 18px; text-align:right; box-shadow:var(--shadow);}
+  .role-btn .rb-icon{font-size:26px; width:44px; height:44px; background:var(--bg-soft); border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .role-btn .rb-text{flex:1; text-align:right;}
+  .role-btn .rb-title{font-family:var(--font-head); font-weight:600; font-size:16px; color:var(--ink);}
+  .role-btn .rb-sub{font-size:13px; color:var(--ink-faint); margin-top:2px;}
+  .role-list{position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; width:100%; max-width:340px;}
+  .small-link{background:none; border:none; color:var(--ink-faint); font-size:13px; text-decoration:underline; padding:4px;}
+  .topbar{display:flex; align-items:center; gap:12px; padding:16px 18px; background:var(--white); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20;}
+  .back-btn{background:var(--bg-soft); border:none; width:36px; height:36px; border-radius:11px; font-size:18px; color:var(--green-deep); flex-shrink:0; display:flex; align-items:center; justify-content:center;}
+  .topbar-title{flex:1;}
+  .topbar-title .tt-main{font-family:var(--font-head); font-size:17px; font-weight:600;}
+  .topbar-title .tt-sub{font-size:12.5px; color:var(--ink-faint);}
+  .topbar .logo-mini{flex-shrink:0;}
+  .tabs{display:flex; gap:8px; padding:12px 18px 0; background:var(--white);}
+  .tab-btn{flex:1; border:none; background:var(--bg-soft); color:var(--ink-soft); padding:10px 8px; border-radius:12px 12px 0 0; font-family:var(--font-head); font-size:14px; font-weight:500;}
+  .tab-btn.active{background:var(--bg); color:var(--green-deep); font-weight:600;}
+  .content{padding:18px;}
+  .chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{display:flex; align-items:center; gap:6px; border:1.5px solid var(--border); background:var(--white); color:var(--ink-soft); padding:9px 13px; border-radius:30px; font-size:14px;}
+  .chip-icon{font-size:15px;}
+  .chip-active{border-color:var(--green-deep); background:var(--green-deep); color:#fff;}
+  .form-block{margin-bottom:18px;}
+  textarea.text-input{resize:vertical; min-height:90px;}
+  .img-strip{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
+  .img-thumb{position:relative; width:68px; height:68px; border-radius:14px; overflow:hidden; border:1.5px solid var(--border);}
+  .img-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .img-remove{position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:rgba(23,56,33,0.75); color:#fff; border:none; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center;}
+  .attach-btn{display:inline-flex; align-items:center; gap:8px; background:var(--bg-soft); border:1.5px dashed var(--green); color:var(--green-deep); padding:10px 14px; border-radius:14px; font-size:14px; margin-top:10px;}
+  .attach-btn input{display:none;}
+  .form-error{color:var(--coral); font-size:14px; margin-top:8px;}
+  .case-card{display:flex; gap:12px; background:var(--white); border-radius:var(--radius-leaf); padding:14px; box-shadow:var(--shadow); border-left:5px solid var(--amber); margin-bottom:12px; text-align:right; width:100%;}
+  .case-card.status-in_progress{border-left-color:var(--blue);}
+  .case-card.status-done{border-left-color:var(--coral);}
+  .case-thumb{width:56px; height:56px; border-radius:13px; flex-shrink:0; object-fit:cover; background:var(--bg-soft);}
+  .case-thumb-fallback{width:56px; height:56px; border-radius:13px; flex-shrink:0; background:var(--bg-soft); display:flex; align-items:center; justify-content:center; font-size:22px;}
+  .case-body{flex:1; min-width:0;}
+  .case-title{font-family:var(--font-head); font-weight:600; font-size:15.5px; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .case-meta{font-size:12.5px; color:var(--ink-faint); margin-bottom:6px;}
+  .status-badge{display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:600; padding:4px 10px; border-radius:20px;}
+  .status-new{background:var(--amber-bg); color:var(--amber);}
+  .status-in_progress{background:var(--blue-bg); color:var(--blue);}
+  .status-done{background:var(--coral-bg); color:var(--coral);}
+  .case-time{font-size:11.5px; color:var(--ink-faint); margin-top:6px;}
+  .case-card-btn{border:none; background:none; padding:0; width:100%; display:block;}
+  .stat-row{display:flex; gap:10px; margin-bottom:16px;}
+  .stat-chip{flex:1; background:var(--white); border:1.5px solid var(--border); border-radius:16px; padding:12px 8px; text-align:center;}
+  .stat-chip.active{border-color:var(--green-deep); background:var(--bg-soft);}
+  .stat-num{font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--ink);}
+  .stat-label{font-size:12px; color:var(--ink-faint); margin-top:2px;}
+  .search-box{margin-bottom:14px;}
+  .empty-state{display:flex; flex-direction:column; align-items:center; text-align:center; padding:40px 20px; color:var(--ink-faint);}
+  .empty-state h3{margin:14px 0 4px; color:var(--ink-soft); font-size:16px;}
+  .empty-state p{font-size:13.5px; margin:0;}
+  .overlay{position:fixed; inset:0; background:var(--bg); z-index:50; overflow-y:auto; max-width:640px; margin:0 auto; box-shadow:0 0 40px rgba(0,0,0,0.15);}
+  .detail-header{display:flex; align-items:flex-start; gap:12px; padding:16px 18px; background:var(--white); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5;}
+  .detail-cat{font-size:22px; background:var(--bg-soft); width:44px; height:44px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .detail-title{font-size:18px; margin-bottom:4px;}
+  .detail-sub{font-size:13px; color:var(--ink-faint);}
+  .section-title{font-family:var(--font-head); font-size:14.5px; font-weight:600; color:var(--green-deep); margin:22px 0 10px;}
+  .desc-box{background:var(--white); border-radius:var(--radius-leaf); padding:14px; font-size:15px; color:var(--ink); white-space:pre-wrap;}
+  .gallery{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .gallery img{width:104px; height:104px; object-fit:cover; border-radius:13px; border:1.5px solid var(--border);}
+  .update-card{background:var(--white); border-radius:16px; padding:12px 14px; margin-bottom:10px; border:1px solid var(--border); border-left:5px solid var(--border);}
+  .update-card.role-staff{border-left-color:var(--green-deep); background:var(--bg-soft);}
+  .update-card.role-reporter{border-left-color:#C7A94E; background:#FBF7EA;}
+  .update-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:6px;}
+  .update-tag{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700; padding:5px 11px; border-radius:20px;}
+  .tag-staff{background:var(--green-deep); color:#fff;}
+  .tag-reporter{background:#C7A94E; color:#fff;}
+  .update-time{font-size:11.5px; color:var(--ink-faint);}
+  .update-text{font-size:14.5px; color:var(--ink); white-space:pre-wrap;}
+  .divider-note{font-size:12.5px; color:var(--ink-faint); text-align:center; margin:14px 0;}
+  .action-row{display:flex; gap:10px; margin:14px 0;}
+  .action-row .btn{flex:1; font-size:14px; padding:12px;}
+  .reply-box{background:var(--white); border-radius:var(--radius-leaf); padding:14px; margin-top:10px; border:1px solid var(--border);}
+  .status-select-row{display:flex; gap:8px; margin-bottom:12px;}
+  .status-opt{flex:1; text-align:center; border:1.5px solid var(--border); border-radius:13px; padding:9px 4px; font-size:13px; background:var(--white); color:var(--ink-soft);}
+  .status-opt.sel-new.active{border-color:var(--amber); background:var(--amber-bg); color:var(--amber); font-weight:600;}
+  .status-opt.sel-in_progress.active{border-color:var(--blue); background:var(--blue-bg); color:var(--blue); font-weight:600;}
+  .status-opt.sel-done.active{border-color:var(--coral); background:var(--coral-bg); color:var(--coral); font-weight:600;}
+  .bottom-space{height:30px;}
+  .loading-line{text-align:center; color:var(--ink-faint); font-size:14px; padding:30px 0;}
+  .badge-live{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--green-deep);}
+  .dot-live{width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block;}
+  .toast-overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:200; pointer-events:none; padding:20px;}
+  .toast-card{background:rgba(23,56,33,0.94); color:#fff; padding:24px 30px; border-radius:22px; display:flex; flex-direction:column; align-items:center; gap:10px; animation:toastPop .25s ease; max-width:260px; text-align:center;}
+  .toast-check{width:60px; height:60px; border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .toast-text{font-family:var(--font-head); font-size:16px; font-weight:600;}
+  @keyframes toastPop{ from{ transform:scale(0.75); opacity:0;} to{ transform:scale(1); opacity:1;} }
+  .gallery-item{border:none; padding:0; background:none; cursor:pointer; display:block;}
+  .lightbox-overlay{position:fixed; inset:0; background:rgba(10,20,14,0.93); z-index:300; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px; gap:16px;}
+  .lightbox-img{max-width:92vw; max-height:64vh; border-radius:16px; object-fit:contain; box-shadow:0 10px 30px rgba(0,0,0,0.4); display:block;}
+  .lightbox-actions{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
+  .lightbox-btn{background:#fff; color:var(--green-deep); border:none; border-radius:14px; padding:12px 22px; font-family:var(--font-head); font-weight:600; font-size:14px; text-decoration:none; display:inline-flex; align-items:center; gap:6px;}
+  .lightbox-btn.ghost{background:rgba(255,255,255,0.14); color:#fff;}
+  .lightbox-close{position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.16); border:none; color:#fff; font-size:20px; display:flex; align-items:center; justify-content:center;}
+  .star-row{display:flex; gap:6px; justify-content:center;}
+  .star-btn{background:none; border:none; font-size:34px; line-height:1; color:var(--amber); padding:2px;}
+  .star-row.static{font-size:26px; color:var(--amber); gap:3px;}
+</style>
+</head>
+<body>
+<div id="app" class="shell"></div>
+
+<script type="module">
+/* =====================================================================
+   ตั้งค่าตรงนี้ก่อนใช้งานจริง (แก้ 2 จุดนี้เท่านั้น ไม่ต้องรู้เรื่องโค้ดก็แก้ได้)
+   ===================================================================== */
+
+// 1) วางค่า Firebase config ของคุณตรงนี้ (ได้จากขั้นตอนในคู่มือ)
+const firebaseConfig = {
+  apiKey: "วางค่า apiKey ตรงนี้",
+  authDomain: "วางค่า authDomain ตรงนี้",
+  projectId: "วางค่า projectId ตรงนี้",
+  storageBucket: "วางค่า storageBucket ตรงนี้",
+  messagingSenderId: "วางค่า messagingSenderId ตรงนี้",
+  appId: "วางค่า appId ตรงนี้"
+};
+
+// 2) ตั้งรหัสผ่านสำหรับโหมด "เจ้าหน้าที่" (เปลี่ยนเป็นรหัสของโรงเรียนเอง)
+const STAFF_PIN = "2568";
+
+/* ===================================================================== */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+let db = null;
+let firebaseReady = false;
+try{
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  firebaseReady = true;
+}catch(e){
+  console.error("Firebase init failed", e);
+}
+
+/* ============ Data & helpers ============ */
+const CATEGORIES = [
+  {key:'electric', label:'ไฟฟ้า/ประปา', icon:'⚡'},
+  {key:'clean', label:'ความสะอาด', icon:'🧹'},
+  {key:'broken', label:'อุปกรณ์ชำรุด', icon:'🔧'},
+  {key:'safety', label:'ความปลอดภัย', icon:'⚠️'},
+  {key:'other', label:'อื่นๆ', icon:'📌'}
+];
+const CAT_MAP = Object.fromEntries(CATEGORIES.map(c=>[c.key,c]));
+const CAT_CHART_COLORS = {
+  electric:'#E3A33D', clean:'#2E6F96', broken:'#D85A34', safety:'#8B5FBF', other:'#6B8F7A'
+};
+const STATUS_META = {
+  new:{label:'รอดำเนินการ', cls:'status-new', icon:'🌱'},
+  in_progress:{label:'กำลังดำเนินการ', cls:'status-in_progress', icon:'🔧'},
+  done:{label:'เสร็จเรียบร้อย', cls:'status-done', icon:'✅'}
+};
+
+function genId(){ return 'c_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
+function escapeHtml(str){
+  return String(str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function timeAgo(iso){
+  const diff = (Date.now() - new Date(iso).getTime())/1000;
+  if(diff<60) return 'เมื่อสักครู่';
+  if(diff<3600) return Math.floor(diff/60)+' นาทีที่แล้ว';
+  if(diff<86400) return Math.floor(diff/3600)+' ชั่วโมงที่แล้ว';
+  if(diff<86400*7) return Math.floor(diff/86400)+' วันที่แล้ว';
+  return new Date(iso).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
+}
+function fullDate(iso){
+  return new Date(iso).toLocaleString('th-TH',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+let _logoIdSeq = 0;
+function mascotSvg(mood, size){
+  size = size||120;
+  _logoIdSeq++;
+  const gradId = 'bbfixGrad'+_logoIdSeq;
+  const happy = mood==='happy';
+  const sparkles = happy ? `
+    <path d="M40,58 l4,10 10,4 -10,4 -4,10 -4,-10 -10,-4 10,-4z" fill="#F2C94C" opacity="0.9"/>
+    <path d="M238,150 l3,8 8,3 -8,3 -3,8 -3,-8 -8,-3 8,-3z" fill="#F2C94C" opacity="0.85"/>` : '';
+  const ridges = [72,90,108,126,144,162,180,198].map(y=>`<line x1="133" y1="${y}" x2="149" y2="${y}" stroke="#1F6E43" stroke-width="3" opacity="0.55"/>`).join('');
+  return `<svg viewBox="0 0 280 260" width="${size}" height="${Math.round(size*260/280)}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#6BCB84"/>
+        <stop offset="100%" stop-color="#1F6E43"/>
+      </linearGradient>
+    </defs>
+    ${sparkles}
+    <path d="M140,34 C126,34 110,48 90,56 C72,63 55,67 38,67 L38,165 C38,208 78,234 140,252 C202,234 242,208 242,165 L242,67 C225,67 208,63 190,56 C170,48 154,34 140,34 Z"
+      fill="url(#${gradId})" stroke="#1F6E43" stroke-width="4"/>
+    <g transform="translate(280,0) scale(-1,1)">
+      <text x="180" y="180" font-family="Mitr, sans-serif" font-weight="700" font-size="92" text-anchor="middle" fill="#EFFBF2">B</text>
+    </g>
+    <text x="180" y="180" font-family="Mitr, sans-serif" font-weight="700" font-size="92" text-anchor="middle" fill="#EFFBF2">B</text>
+    <rect x="131" y="58" width="18" height="150" rx="5" fill="#F5FFF7"/>
+    ${ridges}
+    <circle cx="140" cy="44" r="20" fill="none" stroke="#F5FFF7" stroke-width="11"/>
+    <rect x="128" y="16" width="24" height="16" fill="#1F6E43"/>
+    <circle cx="140" cy="222" r="20" fill="none" stroke="#F5FFF7" stroke-width="11"/>
+    <rect x="128" y="222" width="24" height="16" fill="#1F6E43"/>
+    <g transform="translate(72,198) rotate(-28)">
+      <rect x="-6" y="-24" width="12" height="40" rx="5" fill="#F5FFF7"/>
+      <circle cx="0" cy="-24" r="11" fill="none" stroke="#F5FFF7" stroke-width="7"/>
+      <rect x="-9" y="-40" width="18" height="12" fill="#1F6E43"/>
+      <circle cx="0" cy="17" r="6" fill="#F5FFF7"/>
+    </g>
+    <circle cx="196" cy="196" r="24" fill="var(--coral)" stroke="#fff" stroke-width="4"/>
+    <path d="M184,196 l8,9 18,-20" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+function resizeImage(file, maxDim, quality){
+  maxDim = maxDim||820; quality = quality||0.65;
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>reject(new Error('read failed'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=>reject(new Error('image decode failed'));
+      img.onload = ()=>{
+        let w=img.width, h=img.height;
+        if(w>h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
+        else if(h>=w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============ State ============ */
+let state = {
+  screen: 'loading',
+  me: null,
+  reporterTab: 'new',
+  activeCaseId: null,
+  confirmDeleteId: null,
+  toast: null,
+  viewingImage: null,
+  cases: [],
+  casesLoaded: false,
+  submitting: false,
+  errors: {},
+  justSubmitted: false,
+  staffFilter: {status:'all', category:'all', q:''},
+  trendMode: 'month'
+};
+let draftReport = {category:'', images:[]};
+let draftUpdate = {text:'', images:[], status:null};
+let draftRating = {value:0, text:''};
+let snapshotStarted = false;
+let _toastSeq = 0;
+function showToast(text){
+  _toastSeq++;
+  const myId = _toastSeq;
+  state.toast = {text, id: myId};
+  render();
+  setTimeout(()=>{
+    if(state.toast && state.toast.id===myId){ state.toast=null; render(); }
+  }, 1500);
+}
+
+/* ============ "Local device" profile (per-browser, not shared) ============ */
+function loadMe(){
+  try{
+    const raw = localStorage.getItem('bbkung_me');
+    if(raw){ state.me = JSON.parse(raw); state.screen='home'; return; }
+  }catch(e){}
+  state.screen = 'onboarding';
+}
+function saveMe(name){
+  const me = {id: genId(), name: name};
+  localStorage.setItem('bbkung_me', JSON.stringify(me));
+  state.me = me;
+}
+function isStaffUnlocked(){
+  return sessionStorage.getItem('bbkung_staff_ok')==='1';
+}
+
+/* ============ Firestore (shared, real-time) ============ */
+function startCasesListener(){
+  if(snapshotStarted || !firebaseReady) return;
+  snapshotStarted = true;
+  onSnapshot(collection(db,'cases'), (snap)=>{
+    state.cases = snap.docs.map(d=>d.data()).sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+    state.casesLoaded = true;
+    render();
+  }, (err)=>{
+    console.error(err);
+    state.casesLoaded = true;
+    render();
+  });
+}
+async function saveCase(c){
+  await setDoc(doc(db,'cases',c.id), c);
+}
+async function deleteCaseDoc(id){
+  await deleteDoc(doc(db,'cases',id));
+}
+
+/* ============ Render engine (focus-preserving) ============ */
+function render(){
+  const app = document.getElementById('app');
+  const active = document.activeElement;
+  let focusId=null, selStart=null, selEnd=null;
+  if(active && active.id && app.contains(active)){
+    focusId = active.id;
+    if('selectionStart' in active){ try{ selStart=active.selectionStart; selEnd=active.selectionEnd; }catch(e){} }
+  }
+  app.innerHTML = screenHtml() + toastHtml() + lightboxHtml();
+  if(focusId){
+    const el = document.getElementById(focusId);
+    if(el){
+      el.focus();
+      if(selStart!=null && 'setSelectionRange' in el){ try{ el.setSelectionRange(selStart, selEnd); }catch(e){} }
+    }
+  }
+}
+function lightboxHtml(){
+  if(!state.viewingImage) return '';
+  return `<div class="lightbox-overlay" data-action="close-image">
+    <button class="lightbox-close" data-action="close-image" aria-label="ปิด">×</button>
+    <div data-action="noop">
+      <img class="lightbox-img" src="${state.viewingImage}" alt="รูปภาพขยาย"/>
+      <div class="lightbox-actions" style="margin-top:14px;">
+        <a class="lightbox-btn" href="${state.viewingImage}" download="bb-fix-รูปภาพ.jpg">⬇️ ดาวน์โหลดรูป</a>
+        <button type="button" class="lightbox-btn ghost" data-action="close-image">ปิด</button>
+      </div>
+    </div>
+  </div>`;
+}
+function toastHtml(){
+  if(!state.toast) return '';
+  return `<div class="toast-overlay"><div class="toast-card">
+    <div class="toast-check"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M4,12 l6,6 10,-12" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="toast-text">${escapeHtml(state.toast.text)}</div>
+  </div></div>`;
+}
+function screenHtml(){
+  if(state.screen==='loading') return `<div class="loading-line">${mascotSvg('default',70)}<div style="margin-top:8px;">กำลังเตรียมระบบ...</div></div>`;
+  if(state.screen==='onboarding') return onboardingView();
+  if(state.screen==='home') return homeView();
+  if(state.screen==='staffpin') return staffPinView();
+  if(state.screen==='reporter') return reporterView();
+  if(state.screen==='staff') return staffView();
+  if(state.screen==='analytics') return analyticsView();
+  return '';
+}
+
+/* ============ Onboarding ============ */
+function onboardingView(){
+  return `
+  <div class="center-screen">
+    <div class="bubble" style="width:180px;height:180px; top:8%; left:-40px;"></div>
+    <div class="bubble" style="width:120px;height:120px; bottom:10%; right:-30px;"></div>
+    <div style="position:relative;z-index:1;">${mascotSvg('default',130)}</div>
+    <h1 class="brand-title" style="position:relative;z-index:1;">BB Fix</h1>
+    <p class="brand-tagline" style="position:relative;z-index:1;">ระบบแจ้งซ่อมและติดตามปัญหาในโรงเรียน<br>บอกชื่อกันก่อน แล้วเริ่มใช้งานได้เลย</p>
+    <div class="onboard-card">
+      <label class="field-label" for="nameInput">ชื่อของคุณ</label>
+      <input id="nameInput" class="text-input" type="text" placeholder="เช่น ครูมิ้นท์ หรือ ด.ช.ต้นกล้า" maxlength="60"/>
+      ${state.errors.onboard ? `<div class="form-error">${escapeHtml(state.errors.onboard)}</div>` : ''}
+      <button class="btn btn-primary" style="margin-top:14px;" data-action="submit-name">เริ่มใช้งาน</button>
+    </div>
+    ${!firebaseReady ? `<div class="form-error" style="position:relative;z-index:1;max-width:300px;">ยังไม่ได้ตั้งค่า Firebase — ระบบจะยังบันทึกข้อมูลจริงไม่ได้จนกว่าจะใส่ค่า config ตามคู่มือ</div>` : ''}
+  </div>`;
+}
+
+/* ============ Home ============ */
+function homeView(){
+  return `
+  <div class="center-screen">
+    <div class="bubble" style="width:200px;height:200px; top:4%; right:-50px;"></div>
+    <div class="bubble" style="width:130px;height:130px; bottom:14%; left:-40px;"></div>
+    <div style="position:relative;z-index:1;">${mascotSvg('default',140)}</div>
+    <h1 class="brand-title" style="position:relative;z-index:1;">BB Fix</h1>
+    <p class="brand-tagline" style="position:relative;z-index:1;">แจ้งซ่อมในโรงเรียน แนบรูปได้ ติดตามได้ทุกขั้นตอน</p>
+    <div class="role-list">
+      <button class="role-btn" data-action="enter-reporter">
+        <span class="rb-icon">🎒</span>
+        <span class="rb-text"><div class="rb-title">แจ้งปัญหา</div><div class="rb-sub">สำหรับนักเรียนและบุคลากร</div></span>
+      </button>
+      <button class="role-btn" data-action="enter-staff">
+        <span class="rb-icon">🛠️</span>
+        <span class="rb-text"><div class="rb-title">เจ้าหน้าที่ดูแลระบบ</div><div class="rb-sub">ดูเคสทั้งหมด อัปเดตสถานะ</div></span>
+      </button>
+    </div>
+    <div style="position:relative;z-index:1; margin-top:6px;">
+      <span style="font-size:13px;color:var(--ink-faint);">เข้าใช้งานในชื่อ ${escapeHtml(state.me?state.me.name:'')}</span>
+      <button class="small-link" data-action="change-name">เปลี่ยนชื่อ</button>
+    </div>
+  </div>`;
+}
+
+/* ============ Staff PIN gate ============ */
+function staffPinView(){
+  return `
+  <div class="center-screen">
+    <div style="position:relative;z-index:1;">${mascotSvg('default',100)}</div>
+    <h1 class="brand-title" style="font-size:24px;">โหมดเจ้าหน้าที่</h1>
+    <p class="brand-tagline">กรอกรหัสผ่านเจ้าหน้าที่เพื่อเข้าดูและจัดการเคสทั้งหมด</p>
+    <div class="onboard-card">
+      <label class="field-label" for="pinInput">รหัสผ่านเจ้าหน้าที่</label>
+      <input id="pinInput" class="text-input" type="password" inputmode="numeric" placeholder="กรอกรหัสผ่าน"/>
+      ${state.errors.pin ? `<div class="form-error">${escapeHtml(state.errors.pin)}</div>` : ''}
+      <button class="btn btn-primary" style="margin-top:14px;" data-action="submit-pin">เข้าสู่ระบบ</button>
+      <button class="small-link" style="margin-top:8px;" data-action="go-home">← กลับหน้าแรก</button>
+    </div>
+  </div>`;
+}
+
+/* ============ Reporter view ============ */
+function reporterView(){
+  const overlay = state.activeCaseId ? detailOverlay('reporter') : '';
+  return `
+  <div class="topbar">
+    <button class="back-btn" data-action="go-home" aria-label="กลับหน้าแรก">←</button>
+    <div class="logo-mini">${mascotSvg('default',38)}</div>
+    <div class="topbar-title">
+      <div class="tt-main">แจ้งปัญหา</div>
+      <div class="tt-sub">สวัสดี ${escapeHtml(state.me.name)}</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn ${state.reporterTab==='new'?'active':''}" data-action="reporter-tab" data-tab="new">แจ้งเรื่องใหม่</button>
+    <button class="tab-btn ${state.reporterTab==='mine'?'active':''}" data-action="reporter-tab" data-tab="mine">เคสของฉัน${state.casesLoaded?' ('+myCases().length+')':''}</button>
+  </div>
+  <div class="content">
+    ${state.reporterTab==='new' ? reportFormView() : myCasesView()}
+  </div>
+  <div class="bottom-space"></div>
+  ${overlay}`;
+}
+function reportFormView(){
+  if(state.justSubmitted){
+    return `
+    <div class="empty-state">
+      ${mascotSvg('happy',110)}
+      <h3>ส่งเรื่องเรียบร้อยแล้ว!</h3>
+      <p>เราได้รับเรื่องของคุณแล้ว ไปดูความคืบหน้าได้ที่แท็บ "เคสของฉัน"</p>
+      <button class="btn btn-primary" style="margin-top:16px; max-width:220px;" data-action="goto-mine">ไปที่เคสของฉัน</button>
+    </div>`;
+  }
+  return `
+  <div class="form-block">
+    <label class="field-label" for="reportTitle">หัวข้อปัญหา</label>
+    <input id="reportTitle" class="text-input" type="text" placeholder="เช่น ก๊อกน้ำห้องน้ำชั้น 2 รั่ว" maxlength="100" value="${escapeHtml(draftReport.title||'')}"/>
+  </div>
+  <div class="form-block">
+    <label class="field-label">หมวดหมู่</label>
+    <div class="chip-row">${categoryChips(draftReport.category,'report')}</div>
+  </div>
+  <div class="form-block">
+    <label class="field-label" for="reportLocation">สถานที่</label>
+    <input id="reportLocation" class="text-input" type="text" placeholder="เช่น อาคาร 2 ชั้น 3 ห้อง 304" maxlength="100" value="${escapeHtml(draftReport.location||'')}"/>
+  </div>
+  <div class="form-block">
+    <label class="field-label" for="reportDesc">รายละเอียด</label>
+    <textarea id="reportDesc" class="text-input" rows="4" placeholder="อธิบายปัญหาที่พบให้ละเอียด เพื่อให้เจ้าหน้าที่เข้าใจและแก้ไขได้ตรงจุด">${escapeHtml(draftReport.description||'')}</textarea>
+  </div>
+  <div class="form-block">
+    <label class="field-label">แนบรูปภาพ (ไม่บังคับ)</label>
+    ${imagePreviewStrip(draftReport.images,'report')}
+    ${draftReport.images.length<4 ? `<label class="attach-btn">📷 แนบรูป (สูงสุด 4 รูป)<input type="file" accept="image/*" multiple data-target="report"/></label>` : ''}
+  </div>
+  ${state.errors.report ? `<div class="form-error">${escapeHtml(state.errors.report)}</div>` : ''}
+  <button class="btn btn-primary" style="width:100%; margin-top:6px;" data-action="submit-report" ${state.submitting?'disabled':''}>${state.submitting?'กำลังส่ง...':'ส่งเรื่องแจ้ง'}</button>
+  `;
+}
+function myCases(){ return state.cases.filter(c=>c.reporterId===state.me.id); }
+function myCasesView(){
+  if(!state.casesLoaded) return `<div class="loading-line">กำลังโหลดเคสของคุณ...</div>`;
+  const list = myCases();
+  if(!list.length){
+    return `<div class="empty-state">${mascotSvg('default',100)}<h3>ยังไม่มีเรื่องที่คุณแจ้งไว้</h3><p>กดแท็บ "แจ้งเรื่องใหม่" เพื่อเริ่มแจ้งปัญหาได้เลย</p></div>`;
+  }
+  return list.map(c=>caseCard(c)).join('');
+}
+
+/* ============ Staff view ============ */
+function staffView(){
+  const overlay = state.activeCaseId ? detailOverlay('staff') : '';
+  const all = state.cases;
+  const counts = { all: all.length, new: all.filter(c=>c.status==='new').length, in_progress: all.filter(c=>c.status==='in_progress').length, done: all.filter(c=>c.status==='done').length };
+  const filtered = filteredStaffCases();
+  return `
+  <div class="topbar">
+    <button class="back-btn" data-action="go-home" aria-label="กลับหน้าแรก">←</button>
+    <div class="logo-mini">${mascotSvg('default',38)}</div>
+    <div class="topbar-title">
+      <div class="tt-main">จัดการเคส</div>
+      <div class="tt-sub">${escapeHtml(state.me.name)} · <span class="badge-live"><span class="dot-live"></span>อัปเดตเรียลไทม์</span></div>
+    </div>
+    <button class="back-btn" data-action="go-analytics" aria-label="ดูรายงาน" title="รายงาน/สถิติ">📊</button>
+  </div>
+  <div class="content">
+    <div class="stat-row">
+      <button class="stat-chip ${state.staffFilter.status==='all'?'active':''}" data-action="staff-filter-status" data-status="all"><div class="stat-num">${counts.all}</div><div class="stat-label">ทั้งหมด</div></button>
+      <button class="stat-chip ${state.staffFilter.status==='new'?'active':''}" data-action="staff-filter-status" data-status="new"><div class="stat-num">${counts.new}</div><div class="stat-label">มาใหม่</div></button>
+      <button class="stat-chip ${state.staffFilter.status==='in_progress'?'active':''}" data-action="staff-filter-status" data-status="in_progress"><div class="stat-num">${counts.in_progress}</div><div class="stat-label">กำลังทำ</div></button>
+      <button class="stat-chip ${state.staffFilter.status==='done'?'active':''}" data-action="staff-filter-status" data-status="done"><div class="stat-num">${counts.done}</div><div class="stat-label">เสร็จแล้ว</div></button>
+    </div>
+    <div class="search-box"><input id="staffSearch" class="text-input" type="text" placeholder="ค้นหาหัวข้อ สถานที่ หรือชื่อผู้แจ้ง" value="${escapeHtml(state.staffFilter.q)}"/></div>
+    <div class="chip-row" style="margin-bottom:14px;">
+      <button class="chip ${state.staffFilter.category==='all'?'chip-active':''}" data-action="staff-filter-cat" data-cat="all">ทุกหมวด</button>
+      ${CATEGORIES.map(c=>`<button class="chip ${state.staffFilter.category===c.key?'chip-active':''}" data-action="staff-filter-cat" data-cat="${c.key}"><span class="chip-icon">${c.icon}</span>${c.label}</button>`).join('')}
+    </div>
+    ${!state.casesLoaded ? `<div class="loading-line">กำลังโหลดเคสทั้งหมด...</div>` :
+      filtered.length ? filtered.map(c=>caseCard(c,true)).join('') :
+      `<div class="empty-state">${mascotSvg('happy',100)}<h3>ไม่พบเคสที่ตรงกับตัวกรอง</h3><p>ลองเปลี่ยนตัวกรองด้านบนดู</p></div>`}
+  </div>
+  <div class="bottom-space"></div>
+  ${overlay}`;
+}
+function filteredStaffCases(){
+  const f = state.staffFilter;
+  const q = f.q.trim().toLowerCase();
+  return state.cases.filter(c=>{
+    if(f.status!=='all' && c.status!==f.status) return false;
+    if(f.category!=='all' && c.category!==f.category) return false;
+    if(q){ const hay = (c.title+' '+c.location+' '+c.reporterName+' '+c.description).toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+}
+
+/* ============ Analytics helpers ============ */
+function categoryBreakdown(cases){
+  const counts = {}; CATEGORIES.forEach(c=>counts[c.key]=0);
+  cases.forEach(c=>{ counts[c.category] = (counts[c.category]||0) + 1; });
+  return counts;
+}
+function polarToCartesian(cx,cy,r,angleDeg){
+  const rad = (angleDeg-90)*Math.PI/180;
+  return {x: cx+r*Math.cos(rad), y: cy+r*Math.sin(rad)};
+}
+function describeSlice(cx,cy,r,startAngle,endAngle){
+  const s = polarToCartesian(cx,cy,r,startAngle);
+  const e = polarToCartesian(cx,cy,r,endAngle);
+  const largeArc = (endAngle-startAngle) > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)} Z`;
+}
+function pieChartSvg(counts, total){
+  if(total<=0) return '';
+  let angle = 0;
+  let slices = '';
+  CATEGORIES.forEach(cat=>{
+    const val = counts[cat.key]||0;
+    if(val<=0) return;
+    const sweep = val/total*360;
+    const end = angle+sweep;
+    slices += `<path d="${describeSlice(100,100,90,angle,end)}" fill="${CAT_CHART_COLORS[cat.key]}"/>`;
+    angle = end;
+  });
+  return `<svg viewBox="0 0 200 200" width="180" height="180">${slices}<circle cx="100" cy="100" r="46" fill="var(--white)"/><text x="100" y="94" text-anchor="middle" font-family="Mitr,sans-serif" font-weight="700" font-size="30" fill="var(--ink)">${total}</text><text x="100" y="116" text-anchor="middle" font-family="Sarabun,sans-serif" font-size="13" fill="var(--ink-faint)">เคสทั้งหมด</text></svg>`;
+}
+function periodKey(iso, mode){
+  const d = new Date(iso);
+  if(mode==='week'){
+    const onejan = new Date(d.getFullYear(),0,1);
+    const week = Math.ceil((((d-onejan)/86400000) + onejan.getDay()+1)/7);
+    return d.getFullYear()+'-W'+String(week).padStart(2,'0');
+  }
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function periodLabel(key, mode){
+  if(mode==='week'){ const parts = key.split('-W'); return 'สัปดาห์ '+parseInt(parts[1],10)+'/'+parts[0].slice(2); }
+  const parts = key.split('-');
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return months[parseInt(parts[1],10)-1]+' '+parts[0].slice(2);
+}
+function trendData(cases, mode){
+  const periods = 6;
+  const now = new Date();
+  const keys = [];
+  for(let i=periods-1;i>=0;i--){
+    const d = new Date(now);
+    if(mode==='week') d.setDate(d.getDate()-i*7); else d.setMonth(d.getMonth()-i);
+    keys.push(periodKey(d.toISOString(), mode));
+  }
+  const counts = {}; keys.forEach(k=>counts[k]=0);
+  cases.forEach(c=>{ const k = periodKey(c.createdAt, mode); if(counts[k]!=null) counts[k]++; });
+  return keys.map(k=>({key:k, label:periodLabel(k,mode), count:counts[k]}));
+}
+function staffPerformance(cases){
+  const map = {};
+  cases.forEach(c=>{
+    if(c.rating && c.resolvedBy){
+      if(!map[c.resolvedBy]) map[c.resolvedBy] = {name:c.resolvedBy, total:0, count:0};
+      map[c.resolvedBy].total += c.rating;
+      map[c.resolvedBy].count += 1;
+    }
+  });
+  return Object.values(map).map(x=>({name:x.name, count:x.count, avg: x.total/x.count})).sort((a,b)=>b.avg-a.avg);
+}
+function starsDisplay(avg){
+  const rounded = Math.round(avg);
+  return [1,2,3,4,5].map(n=>n<=rounded?'★':'☆').join('');
+}
+
+function analyticsView(){
+  const cases = state.cases;
+  const catCounts = categoryBreakdown(cases);
+  const totalCases = cases.length;
+  const topCat = CATEGORIES.slice().sort((a,b)=>(catCounts[b.key]||0)-(catCounts[a.key]||0))[0];
+  const trend = trendData(cases, state.trendMode);
+  const maxCount = Math.max(1, ...trend.map(t=>t.count));
+  const lastTwo = trend.slice(-2);
+  let deltaHtml = '';
+  if(lastTwo.length===2){
+    const diff = lastTwo[1].count - lastTwo[0].count;
+    if(diff>0) deltaHtml = `<span style="color:var(--coral); font-weight:600;">▲ เพิ่มขึ้น ${diff} เคส จากช่วงก่อน</span>`;
+    else if(diff<0) deltaHtml = `<span style="color:var(--green-deep); font-weight:600;">▼ ลดลง ${Math.abs(diff)} เคส จากช่วงก่อน</span>`;
+    else deltaHtml = `<span style="color:var(--ink-faint);">เท่ากับช่วงก่อน</span>`;
+  }
+  const perf = staffPerformance(cases);
+  const ratedCount = cases.filter(c=>c.rating).length;
+  const overallAvg = ratedCount ? (cases.reduce((s,c)=>s+(c.rating||0),0)/ratedCount) : 0;
+
+  return `
+  <div class="topbar">
+    <button class="back-btn" data-action="go-staff" aria-label="กลับ">←</button>
+    <div class="logo-mini">${mascotSvg('default',38)}</div>
+    <div class="topbar-title">
+      <div class="tt-main">รายงาน/สถิติ</div>
+      <div class="tt-sub">ภาพรวมจากเคสทั้งหมด</div>
+    </div>
+  </div>
+  <div class="content">
+    ${totalCases===0 ? `<div class="empty-state">${mascotSvg('default',100)}<h3>ยังไม่มีข้อมูลเคส</h3><p>เมื่อมีเคสเข้ามา สถิติจะแสดงที่นี่</p></div>` : `
+    <div class="section-title" style="margin-top:0;">หมวดหมู่ปัญหาที่พบบ่อย</div>
+    <div class="desc-box" style="display:flex; flex-direction:column; align-items:center; gap:14px;">
+      ${pieChartSvg(catCounts, totalCases)}
+      <div style="width:100%;">
+        ${CATEGORIES.slice().sort((a,b)=>(catCounts[b.key]||0)-(catCounts[a.key]||0)).map(cat=>{
+          const val = catCounts[cat.key]||0;
+          const pct = totalCases ? Math.round(val/totalCases*100) : 0;
+          return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:7px;">
+            <span style="width:12px;height:12px;border-radius:4px;background:${CAT_CHART_COLORS[cat.key]}; flex-shrink:0;"></span>
+            <span style="flex:1; font-size:14px;">${cat.icon} ${cat.label}</span>
+            <span style="font-size:13px; color:var(--ink-faint);">${val} เคส (${pct}%)</span>
+          </div>`;
+        }).join('')}
+      </div>
+      ${topCat && catCounts[topCat.key]>0 ? `<div style="font-size:13.5px; color:var(--ink-soft); text-align:center;">ปัญหาที่พบบ่อยที่สุด: <b>${topCat.icon} ${topCat.label}</b></div>` : ''}
+    </div>
+
+    <div class="section-title">แนวโน้มจำนวนเคส</div>
+    <div class="chip-row" style="margin-bottom:10px;">
+      <button class="chip ${state.trendMode==='week'?'chip-active':''}" data-action="set-trend-mode" data-mode="week">รายสัปดาห์</button>
+      <button class="chip ${state.trendMode==='month'?'chip-active':''}" data-action="set-trend-mode" data-mode="month">รายเดือน</button>
+    </div>
+    <div class="desc-box">
+      <div style="display:flex; align-items:flex-end; gap:8px; height:130px;">
+        ${trend.map(t=>`
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
+            <div style="font-size:11.5px; color:var(--ink-soft); margin-bottom:4px;">${t.count}</div>
+            <div style="width:100%; max-width:28px; height:${Math.max(4, Math.round(t.count/maxCount*96))}px; background:var(--green); border-radius:6px 6px 3px 3px;"></div>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        ${trend.map(t=>`<div style="flex:1; text-align:center; font-size:10.5px; color:var(--ink-faint);">${t.label}</div>`).join('')}
+      </div>
+      ${deltaHtml ? `<div style="text-align:center; margin-top:12px; font-size:13.5px;">${deltaHtml}</div>` : ''}
+    </div>
+
+    <div class="section-title">คะแนนการปฏิบัติงาน</div>
+    ${ratedCount ? `
+    <div class="desc-box" style="margin-bottom:12px; text-align:center;">
+      <div style="font-size:13px; color:var(--ink-faint);">คะแนนเฉลี่ยรวม (จาก ${ratedCount} เคสที่มีคะแนน)</div>
+      <div style="font-size:22px; color:var(--amber); margin-top:4px;">${starsDisplay(overallAvg)} <span style="font-size:14px; color:var(--ink);">${overallAvg.toFixed(1)}/5</span></div>
+    </div>
+    ${perf.length ? perf.map(p=>`
+      <div class="case-card" style="border-left-color:var(--green-deep);">
+        <div class="case-body" style="text-align:right;">
+          <div class="case-title">${escapeHtml(p.name)}</div>
+          <div style="font-size:19px; color:var(--amber); margin:4px 0;">${starsDisplay(p.avg)} <span style="font-size:13px; color:var(--ink);">${p.avg.toFixed(1)}/5</span></div>
+          <div class="case-meta">แก้ไขและได้รับคะแนน ${p.count} เคส</div>
+        </div>
+      </div>`).join('') : `<div class="divider-note">ยังไม่มีเคสที่ระบุผู้แก้ไขพร้อมคะแนน</div>`}
+    ` : `<div class="empty-state">${mascotSvg('default',90)}<h3>ยังไม่มีคะแนนจากผู้แจ้ง</h3><p>เมื่อผู้แจ้งยืนยันว่าหายแล้วพร้อมให้คะแนน จะแสดงสรุปที่นี่</p></div>`}
+    `}
+  </div>
+  <div class="bottom-space"></div>`;
+}
+
+/* ============ Shared: chips / previews / cards ============ */
+function categoryChips(selected, target){
+  return CATEGORIES.map(c=>`<button type="button" class="chip ${selected===c.key?'chip-active':''}" data-action="select-category" data-target="${target}" data-cat="${c.key}"><span class="chip-icon">${c.icon}</span>${c.label}</button>`).join('');
+}
+function imagePreviewStrip(images, target){
+  if(!images.length) return '';
+  return `<div class="img-strip">${images.map((src,i)=>`<div class="img-thumb"><img src="${src}" alt="รูปที่แนบ ${i+1}"/><button type="button" class="img-remove" data-action="remove-image" data-target="${target}" data-idx="${i}" aria-label="ลบรูปนี้">×</button></div>`).join('')}</div>`;
+}
+function caseCard(c, showReporter){
+  const sm = STATUS_META[c.status] || STATUS_META.new;
+  const cm = CAT_MAP[c.category] || {label:c.category, icon:'📌'};
+  const thumb = c.images && c.images.length ? `<img class="case-thumb" src="${c.images[0]}" alt=""/>` : `<div class="case-thumb-fallback">${cm.icon}</div>`;
+  return `
+  <button class="case-card-btn" data-action="open-case" data-id="${c.id}">
+    <div class="case-card status-${c.status}">
+      ${thumb}
+      <div class="case-body">
+        <div class="case-title">${escapeHtml(c.title)}</div>
+        <div class="case-meta">${cm.icon} ${cm.label}${c.location?' · '+escapeHtml(c.location):''}${showReporter?' · '+escapeHtml(c.reporterName):''}</div>
+        <span class="status-badge ${sm.cls}">${sm.icon} ${sm.label}</span>
+        <div class="case-time">${timeAgo(c.createdAt)}</div>
+      </div>
+    </div>
+  </button>`;
+}
+
+/* ============ Detail overlay ============ */
+function detailOverlay(role){
+  const c = state.cases.find(x=>x.id===state.activeCaseId);
+  if(!c) return '';
+  const cm = CAT_MAP[c.category] || {label:c.category, icon:'📌'};
+  const sm = STATUS_META[c.status] || STATUS_META.new;
+  const updates = (c.updates||[]).slice().sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+  const updatesHtml = updates.length ? updates.map(u=>`
+      <div class="update-card role-${u.role}">
+        <div class="update-top">
+          <span class="update-tag ${u.role==='staff'?'tag-staff':'tag-reporter'}">${u.role==='staff'?'🛠️ เจ้าหน้าที่':'🎒 ผู้แจ้ง'} · ${escapeHtml(u.by)}</span>
+          <span class="update-time">${fullDate(u.timestamp)}</span>
+        </div>
+        ${u.text?`<div class="update-text">${escapeHtml(u.text)}</div>`:''}
+        ${u.images && u.images.length ? `<div class="gallery">${u.images.map(img=>`<button type="button" class="gallery-item" data-action="view-image" data-src="${img}"><img src="${img}" alt="รูปที่แนบ"/></button>`).join('')}</div>` : ''}
+      </div>`).join('') : `<div class="divider-note">ยังไม่มีความคืบหน้า</div>`;
+  let replyBlock = '';
+  if(role==='reporter'){
+    let quickActions = '';
+    if(c.status==='done' && !c.rating){
+      const rv = draftRating.value;
+      quickActions = `
+      <div class="reply-box" style="border-color:var(--coral); margin-top:14px;">
+        <label class="field-label">ให้คะแนนการแก้ไขปัญหานี้</label>
+        <div class="star-row">${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn" data-action="select-rating" data-value="${n}" aria-label="${n} ดาว">${n<=rv?'★':'☆'}</button>`).join('')}</div>
+        <label class="field-label" for="ratingText" style="margin-top:10px;">ข้อเสนอแนะ (ไม่บังคับ)</label>
+        <textarea id="ratingText" class="text-input" rows="2" placeholder="บอกเราหน่อยว่าเป็นยังไงบ้าง...">${escapeHtml(draftRating.text||'')}</textarea>
+        ${state.errors.rating ? `<div class="form-error">${escapeHtml(state.errors.rating)}</div>` : ''}
+        <button class="btn btn-primary" style="width:100%; margin-top:12px;" data-action="submit-rating" data-id="${c.id}">✅ ยืนยันว่าหายแล้ว พร้อมให้คะแนน</button>
+      </div>
+      <div style="text-align:center; margin-top:10px;">
+        <button class="small-link" data-action="reopen-case" data-id="${c.id}">⚠️ ยังไม่เรียบร้อย รบกวนตรวจสอบอีกครั้ง</button>
+      </div>`;
+    } else if(c.status==='done' && c.rating){
+      quickActions = `
+      <div class="reply-box" style="text-align:center;">
+        <div class="field-label" style="text-align:center;">คุณให้คะแนนไปแล้ว</div>
+        <div class="star-row static">${[1,2,3,4,5].map(n=>`<span>${n<=c.rating?'★':'☆'}</span>`).join('')}</div>
+        ${c.feedback ? `<div class="desc-box" style="margin-top:8px; text-align:right;">${escapeHtml(c.feedback)}</div>` : ''}
+      </div>
+      <div style="text-align:center; margin-top:10px;">
+        <button class="small-link" data-action="reopen-case" data-id="${c.id}">⚠️ ปัญหากลับมาอีก? แจ้งเจ้าหน้าที่</button>
+      </div>`;
+    }
+    replyBlock = `${quickActions}
+      <div class="reply-box">
+        <label class="field-label" for="updateText">เพิ่มความคิดเห็นหรือรายละเอียดเพิ่มเติม</label>
+        <textarea id="updateText" class="text-input" rows="3" placeholder="พิมพ์ข้อความถึงเจ้าหน้าที่...">${escapeHtml(draftUpdate.text||'')}</textarea>
+        ${imagePreviewStrip(draftUpdate.images,'update')}
+        ${draftUpdate.images.length<4 ? `<label class="attach-btn">📷 แนบรูป<input type="file" accept="image/*" multiple data-target="update"/></label>` : ''}
+        ${state.errors.update ? `<div class="form-error">${escapeHtml(state.errors.update)}</div>` : ''}
+        <button class="btn btn-primary" style="width:100%; margin-top:12px;" data-action="submit-update" data-id="${c.id}" data-role="reporter">ส่งความคิดเห็น</button>
+      </div>`;
+  } else {
+    const cur = draftUpdate.status || c.status;
+    replyBlock = `<div class="reply-box">
+        <label class="field-label">อัปเดตสถานะ</label>
+        <div class="status-select-row">${['new','in_progress','done'].map(s=>`<button type="button" class="status-opt sel-${s} ${cur===s?'active':''}" data-action="select-status" data-status="${s}">${STATUS_META[s].icon} ${STATUS_META[s].label}</button>`).join('')}</div>
+        <label class="field-label" for="updateText">บันทึกความคืบหน้า</label>
+        <textarea id="updateText" class="text-input" rows="3" placeholder="เช่น ส่งช่างไปตรวจแล้ว คาดว่าจะเสร็จวันพรุ่งนี้">${escapeHtml(draftUpdate.text||'')}</textarea>
+        ${imagePreviewStrip(draftUpdate.images,'update')}
+        ${draftUpdate.images.length<4 ? `<label class="attach-btn">📷 แนบรูป (เช่น รูปหลังแก้ไข)<input type="file" accept="image/*" multiple data-target="update"/></label>` : ''}
+        ${state.errors.update ? `<div class="form-error">${escapeHtml(state.errors.update)}</div>` : ''}
+        <button class="btn btn-primary" style="width:100%; margin-top:12px;" data-action="submit-update" data-id="${c.id}" data-role="staff">บันทึกอัปเดต</button>
+      </div>
+      <div style="margin-top:18px; text-align:center;">
+        ${state.confirmDeleteId===c.id
+          ? `<div class="form-error" style="margin-bottom:8px;">ลบแล้วกู้คืนไม่ได้ ยืนยันลบเคสนี้จริงไหม?</div>
+             <div class="action-row">
+               <button class="btn btn-ghost" data-action="cancel-delete">ไม่ลบ</button>
+               <button class="btn" style="background:var(--coral); color:#fff;" data-action="confirm-delete" data-id="${c.id}">ยืนยันลบถาวร</button>
+             </div>`
+          : `<button class="small-link" style="color:var(--coral);" data-action="ask-delete" data-id="${c.id}">🗑️ ลบเคสนี้ (เคสที่จบแล้ว)</button>`}
+      </div>`;
+  }
+  return `
+  <div class="overlay">
+    <div class="detail-header">
+      <button class="back-btn" data-action="close-detail" aria-label="ปิด">←</button>
+      <div class="detail-cat">${cm.icon}</div>
+      <div style="flex:1;">
+        <div class="detail-title">${escapeHtml(c.title)}</div>
+        <div class="detail-sub">${cm.label}${c.location?' · '+escapeHtml(c.location):''}${role==='staff'?' · แจ้งโดย '+escapeHtml(c.reporterName):''}</div>
+        <div style="margin-top:6px;"><span class="status-badge ${sm.cls}">${sm.icon} ${sm.label}</span></div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="section-title">รายละเอียดที่แจ้ง</div>
+      <div class="desc-box">${escapeHtml(c.description)}</div>
+      ${c.images && c.images.length ? `<div class="gallery">${c.images.map(img=>`<button type="button" class="gallery-item" data-action="view-image" data-src="${img}"><img src="${img}" alt="รูปที่แนบ"/></button>`).join('')}</div>` : ''}
+      <div class="detail-sub" style="margin-top:8px;">แจ้งเมื่อ ${fullDate(c.createdAt)}</div>
+      <div class="section-title">อัปเดตความคืบหน้า</div>
+      ${updatesHtml}
+      ${replyBlock}
+    </div>
+    <div class="bottom-space"></div>
+  </div>`;
+}
+
+/* ============ Actions ============ */
+async function handleAction(action, el){
+  if(action==='submit-name'){
+    const val = document.getElementById('nameInput').value.trim();
+    if(!val){ state.errors.onboard='กรอกชื่อก่อนนะ'; render(); return; }
+    state.errors.onboard=null;
+    saveMe(val);
+    state.screen='home'; render(); return;
+  }
+  if(action==='change-name'){
+    localStorage.removeItem('bbkung_me');
+    state.me=null; state.screen='onboarding'; render(); return;
+  }
+  if(action==='enter-reporter'){
+    state.screen='reporter'; state.reporterTab='new'; state.justSubmitted=false; draftReport={category:'',images:[]};
+    render(); startCasesListener(); return;
+  }
+  if(action==='enter-staff'){
+    if(isStaffUnlocked()){ state.screen='staff'; render(); startCasesListener(); }
+    else { state.screen='staffpin'; render(); }
+    return;
+  }
+  if(action==='go-analytics'){ state.screen='analytics'; render(); return; }
+  if(action==='go-staff'){ state.screen='staff'; render(); return; }
+  if(action==='set-trend-mode'){ state.trendMode = el.dataset.mode; render(); return; }
+  if(action==='submit-pin'){
+    const val = document.getElementById('pinInput').value;
+    if(val===STAFF_PIN){
+      sessionStorage.setItem('bbkung_staff_ok','1');
+      state.errors.pin=null; state.screen='staff'; render(); startCasesListener();
+    } else {
+      state.errors.pin='รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง'; render();
+    }
+    return;
+  }
+  if(action==='view-image'){ state.viewingImage = el.dataset.src; render(); return; }
+  if(action==='close-image'){ state.viewingImage = null; render(); return; }
+  if(action==='noop'){ return; }
+  if(action==='go-home'){ state.screen='home'; state.activeCaseId=null; render(); return; }
+  if(action==='reporter-tab'){ state.reporterTab = el.dataset.tab; if(state.reporterTab==='new'){ state.justSubmitted=false; } render(); return; }
+  if(action==='goto-mine'){ state.reporterTab='mine'; state.justSubmitted=false; render(); return; }
+  if(action==='select-category'){ if(el.dataset.target==='report') draftReport.category = el.dataset.cat; render(); return; }
+  if(action==='remove-image'){
+    const draft = el.dataset.target==='report' ? draftReport : draftUpdate;
+    draft.images.splice(parseInt(el.dataset.idx,10),1);
+    render(); return;
+  }
+  if(action==='submit-report'){
+    draftReport.title = document.getElementById('reportTitle').value.trim();
+    draftReport.location = document.getElementById('reportLocation').value.trim();
+    draftReport.description = document.getElementById('reportDesc').value.trim();
+    if(!draftReport.title || !draftReport.category || !draftReport.description){
+      state.errors.report='กรอกหัวข้อ เลือกหมวดหมู่ และอธิบายรายละเอียดก่อนส่งนะ'; render(); return;
+    }
+    state.errors.report=null; state.submitting=true; render();
+    const c = {
+      id: genId(), title: draftReport.title, category: draftReport.category, location: draftReport.location,
+      description: draftReport.description, images: draftReport.images.slice(),
+      reporterId: state.me.id, reporterName: state.me.name, status:'new',
+      createdAt: new Date().toISOString(), updates: []
+    };
+    try{
+      await saveCase(c);
+      draftReport={category:'',images:[]};
+      state.justSubmitted=true;
+      showToast('ส่งเรื่องสำเร็จแล้ว!');
+    }catch(e){ state.errors.report='ส่งเรื่องไม่สำเร็จ ตรวจสอบการตั้งค่า Firebase หรือลองใหม่'; }
+    state.submitting=false; render(); return;
+  }
+  if(action==='open-case'){
+    state.activeCaseId = el.dataset.id;
+    const c = state.cases.find(x=>x.id===state.activeCaseId);
+    draftUpdate = {text:'', images:[], status: c?c.status:null};
+    draftRating = {value:0, text:''};
+    state.errors.update=null; state.errors.rating=null; state.confirmDeleteId=null; render(); return;
+  }
+  if(action==='select-rating'){ draftRating.value = parseInt(el.dataset.value,10); render(); return; }
+  if(action==='submit-rating'){
+    const id = el.dataset.id;
+    const idx = state.cases.findIndex(x=>x.id===id);
+    if(idx===-1) return;
+    if(draftRating.value<1){ state.errors.rating='กรุณาเลือกดาวให้คะแนนก่อนนะ'; render(); return; }
+    const c = state.cases[idx];
+    c.rating = draftRating.value;
+    c.feedback = draftRating.text ? draftRating.text.trim() : '';
+    c.ratedAt = new Date().toISOString();
+    c.updates = c.updates || [];
+    c.updates.push({
+      by: state.me.name, role:'reporter',
+      text: 'ยืนยันว่าปัญหาได้รับการแก้ไขเรียบร้อยแล้ว ให้คะแนน '+c.rating+'/5 ดาว'+(c.feedback?('\nข้อเสนอแนะ: '+c.feedback):''),
+      images:[], timestamp:new Date().toISOString()
+    });
+    state.errors.rating=null;
+    try{ await saveCase(c); }catch(e){ state.errors.rating='บันทึกคะแนนไม่สำเร็จ ลองใหม่'; render(); return; }
+    draftRating = {value:0, text:''};
+    showToast('ขอบคุณสำหรับคะแนน! ⭐'); return;
+  }
+  if(action==='close-detail'){ state.activeCaseId=null; state.confirmDeleteId=null; render(); return; }
+  if(action==='ask-delete'){ state.confirmDeleteId = el.dataset.id; render(); return; }
+  if(action==='cancel-delete'){ state.confirmDeleteId = null; render(); return; }
+  if(action==='confirm-delete'){
+    const id = el.dataset.id;
+    try{ await deleteCaseDoc(id); }catch(e){ state.errors.update='ลบไม่สำเร็จ ลองใหม่'; render(); return; }
+    state.confirmDeleteId=null; state.activeCaseId=null;
+    showToast('ลบเคสแล้ว'); return;
+  }
+  if(action==='select-status'){ draftUpdate.status = el.dataset.status; render(); return; }
+  if(action==='staff-filter-status'){ state.staffFilter.status = el.dataset.status; render(); return; }
+  if(action==='staff-filter-cat'){ state.staffFilter.category = el.dataset.cat; render(); return; }
+  if(action==='submit-update' || action==='confirm-fixed' || action==='reopen-case'){
+    const id = el.dataset.id;
+    const idx = state.cases.findIndex(x=>x.id===id);
+    if(idx===-1) return;
+    const c = state.cases[idx];
+    let update;
+    if(action==='confirm-fixed'){
+      update = {by: state.me.name, role:'reporter', text:'ยืนยันว่าปัญหาได้รับการแก้ไขเรียบร้อยแล้ว ขอบคุณค่ะ/ครับ', images:[], timestamp:new Date().toISOString()};
+    } else if(action==='reopen-case'){
+      update = {by: state.me.name, role:'reporter', text:'แจ้งว่ายังไม่เรียบร้อยดี รบกวนตรวจสอบอีกครั้ง', images:[], timestamp:new Date().toISOString()};
+      c.status='in_progress';
+    } else {
+      const role = el.dataset.role;
+      const text = document.getElementById('updateText') ? document.getElementById('updateText').value.trim() : draftUpdate.text.trim();
+      if(!text && draftUpdate.images.length===0){ state.errors.update='เขียนข้อความหรือแนบรูปก่อนนะ'; render(); return; }
+      update = {by: state.me.name, role, text, images: draftUpdate.images.slice(), timestamp:new Date().toISOString()};
+      if(role==='staff' && draftUpdate.status){
+        c.status = draftUpdate.status;
+        if(draftUpdate.status==='done') c.resolvedBy = state.me.name;
+      }
+    }
+    c.updates = c.updates || [];
+    c.updates.push(update);
+    state.errors.update=null;
+    try{ await saveCase(c); }catch(e){ state.errors.update='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    draftUpdate = {text:'', images:[], status:c.status};
+    const toastMsg = action==='confirm-fixed' ? 'ยืนยันเรียบร้อยแล้ว ขอบคุณค่ะ/ครับ'
+      : action==='reopen-case' ? 'แจ้งเจ้าหน้าที่อีกครั้งแล้ว'
+      : (el.dataset.role==='staff' ? 'บันทึกอัปเดตแล้ว' : 'ส่งความคิดเห็นแล้ว');
+    showToast(toastMsg); return;
+  }
+}
+async function handleFileInput(input){
+  const target = input.dataset.target;
+  const files = Array.from(input.files || []);
+  if(!files.length) return;
+  const draft = target==='report' ? draftReport : draftUpdate;
+  const room = Math.max(4 - draft.images.length, 0);
+  const toProcess = files.slice(0, room);
+  for(const f of toProcess){
+    try{ const dataUrl = await resizeImage(f); draft.images.push(dataUrl); }catch(e){}
+  }
+  render();
+}
+
+/* ============ Event wiring ============ */
+document.getElementById('app').addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-action]');
+  if(!el) return;
+  handleAction(el.dataset.action, el);
+});
+document.getElementById('app').addEventListener('change', (e)=>{
+  if(e.target.matches('input[type=file]')) handleFileInput(e.target);
+});
+document.getElementById('app').addEventListener('input', (e)=>{
+  const t = e.target;
+  if(t.id==='reportTitle') draftReport.title = t.value;
+  else if(t.id==='reportLocation') draftReport.location = t.value;
+  else if(t.id==='reportDesc') draftReport.description = t.value;
+  else if(t.id==='updateText') draftUpdate.text = t.value;
+  else if(t.id==='ratingText') draftRating.text = t.value;
+  else if(t.id==='staffSearch'){ state.staffFilter.q = t.value; render(); }
+});
+
+/* ============ Init ============ */
+loadMe();
+render();
+</script>
+</body>
+</html>

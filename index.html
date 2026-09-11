@@ -150,12 +150,13 @@
 
 // 1) วางค่า Firebase config ของคุณตรงนี้ (ได้จากขั้นตอนในคู่มือ)
 const firebaseConfig = {
-  apiKey: "วางค่า apiKey ตรงนี้",
-  authDomain: "วางค่า authDomain ตรงนี้",
-  projectId: "วางค่า projectId ตรงนี้",
-  storageBucket: "วางค่า storageBucket ตรงนี้",
-  messagingSenderId: "วางค่า messagingSenderId ตรงนี้",
-  appId: "วางค่า appId ตรงนี้"
+  apiKey: "AIzaSyDtjlM_dVVvWG0xjRqoblcP02bG2cdkrr8",
+  authDomain: "bb-fix.firebaseapp.com",
+  projectId: "bb-fix",
+  storageBucket: "bb-fix.firebasestorage.app",
+  messagingSenderId: "1094808157345",
+  appId: "1:1094808157345:web:a856403297a654f4a244e0",
+  measurementId: "G-2J6YF0Y5JC"
 };
 
 // 2) ตั้งรหัสผ่านสำหรับโหมด "เจ้าหน้าที่" (เปลี่ยนเป็นรหัสของโรงเรียนเอง)
@@ -170,12 +171,15 @@ import {
 
 let db = null;
 let firebaseReady = false;
-try{
-  const app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  firebaseReady = true;
-}catch(e){
-  console.error("Firebase init failed", e);
+const isConfigPlaceholder = Object.values(firebaseConfig).some(v => typeof v === 'string' && v.includes('วางค่า'));
+if(!isConfigPlaceholder){
+  try{
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    firebaseReady = true;
+  }catch(e){
+    console.error("Firebase init failed", e);
+  }
 }
 
 /* ============ Data & helpers ============ */
@@ -251,6 +255,10 @@ function mascotSvg(mood, size){
     <path d="M184,196 l8,9 18,-20" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 }
+function configWarningBanner(){
+  if(firebaseReady) return '';
+  return `<div class="form-error" style="background:var(--coral-bg); padding:12px 14px; border-radius:14px; margin-bottom:14px; text-align:right;">⚠️ ยังไม่ได้ใส่ค่า Firebase config จริง (ยังเป็นค่าเริ่มต้น "วางค่า...ตรงนี้") เพราะแบบนี้เคสจะไม่ถูกบันทึกจริง ไม่ขึ้นเครื่องหมายติ๊กว่าสำเร็จ และจะไม่ซิงค์ข้ามเครื่อง/ข้ามคน — ต้องใส่ค่าจาก Firebase Console ให้ครบทั้ง 6 ช่องในไฟล์นี้ก่อน</div>`;
+}
 function resizeImage(file, maxDim, quality){
   maxDim = maxDim||820; quality = quality||0.65;
   return new Promise((resolve,reject)=>{
@@ -288,7 +296,7 @@ let state = {
   submitting: false,
   errors: {},
   justSubmitted: false,
-  staffFilter: {status:'all', category:'all', q:''},
+  staffFilter: {status:'all', category:'all', q:'', showHidden:false},
   trendMode: 'month'
 };
 let draftReport = {category:'', images:[]};
@@ -421,6 +429,7 @@ function homeView(){
     <div style="position:relative;z-index:1;">${mascotSvg('default',140)}</div>
     <h1 class="brand-title" style="position:relative;z-index:1;">BB Fix</h1>
     <p class="brand-tagline" style="position:relative;z-index:1;">แจ้งซ่อมในโรงเรียน แนบรูปได้ ติดตามได้ทุกขั้นตอน</p>
+    ${!firebaseReady ? `<div style="position:relative;z-index:1;max-width:300px;">${configWarningBanner()}</div>` : ''}
     <div class="role-list">
       <button class="role-btn" data-action="enter-reporter">
         <span class="rb-icon">🎒</span>
@@ -472,6 +481,7 @@ function reporterView(){
     <button class="tab-btn ${state.reporterTab==='mine'?'active':''}" data-action="reporter-tab" data-tab="mine">เคสของฉัน${state.casesLoaded?' ('+myCases().length+')':''}</button>
   </div>
   <div class="content">
+    ${configWarningBanner()}
     ${state.reporterTab==='new' ? reportFormView() : myCasesView()}
   </div>
   <div class="bottom-space"></div>
@@ -529,6 +539,7 @@ function staffView(){
   const all = state.cases;
   const counts = { all: all.length, new: all.filter(c=>c.status==='new').length, in_progress: all.filter(c=>c.status==='in_progress').length, done: all.filter(c=>c.status==='done').length };
   const filtered = filteredStaffCases();
+  const hiddenCount = all.filter(c=>c.hidden).length;
   return `
   <div class="topbar">
     <button class="back-btn" data-action="go-home" aria-label="กลับหน้าแรก">←</button>
@@ -540,6 +551,7 @@ function staffView(){
     <button class="back-btn" data-action="go-analytics" aria-label="ดูรายงาน" title="รายงาน/สถิติ">📊</button>
   </div>
   <div class="content">
+    ${configWarningBanner()}
     <div class="stat-row">
       <button class="stat-chip ${state.staffFilter.status==='all'?'active':''}" data-action="staff-filter-status" data-status="all"><div class="stat-num">${counts.all}</div><div class="stat-label">ทั้งหมด</div></button>
       <button class="stat-chip ${state.staffFilter.status==='new'?'active':''}" data-action="staff-filter-status" data-status="new"><div class="stat-num">${counts.new}</div><div class="stat-label">มาใหม่</div></button>
@@ -547,6 +559,10 @@ function staffView(){
       <button class="stat-chip ${state.staffFilter.status==='done'?'active':''}" data-action="staff-filter-status" data-status="done"><div class="stat-num">${counts.done}</div><div class="stat-label">เสร็จแล้ว</div></button>
     </div>
     <div class="search-box"><input id="staffSearch" class="text-input" type="text" placeholder="ค้นหาหัวข้อ สถานที่ หรือชื่อผู้แจ้ง" value="${escapeHtml(state.staffFilter.q)}"/></div>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-bottom:12px; cursor:pointer;">
+      <input type="checkbox" id="showHiddenChk" data-action="toggle-show-hidden" ${state.staffFilter.showHidden?'checked':''} style="width:18px;height:18px;accent-color:var(--green-deep);"/>
+      แสดงเคสที่ซ่อนไว้ด้วย${hiddenCount?` (ซ่อนอยู่ ${hiddenCount} เคส)`:''}
+    </label>
     <div class="chip-row" style="margin-bottom:14px;">
       <button class="chip ${state.staffFilter.category==='all'?'chip-active':''}" data-action="staff-filter-cat" data-cat="all">ทุกหมวด</button>
       ${CATEGORIES.map(c=>`<button class="chip ${state.staffFilter.category===c.key?'chip-active':''}" data-action="staff-filter-cat" data-cat="${c.key}"><span class="chip-icon">${c.icon}</span>${c.label}</button>`).join('')}
@@ -562,6 +578,7 @@ function filteredStaffCases(){
   const f = state.staffFilter;
   const q = f.q.trim().toLowerCase();
   return state.cases.filter(c=>{
+    if(!f.showHidden && c.hidden) return false;
     if(f.status!=='all' && c.status!==f.status) return false;
     if(f.category!=='all' && c.category!==f.category) return false;
     if(q){ const hay = (c.title+' '+c.location+' '+c.reporterName+' '+c.description).toLowerCase(); if(!hay.includes(q)) return false; }
@@ -749,6 +766,7 @@ function caseCard(c, showReporter){
         <div class="case-title">${escapeHtml(c.title)}</div>
         <div class="case-meta">${cm.icon} ${cm.label}${c.location?' · '+escapeHtml(c.location):''}${showReporter?' · '+escapeHtml(c.reporterName):''}</div>
         <span class="status-badge ${sm.cls}">${sm.icon} ${sm.label}</span>
+        ${c.hidden ? `<span class="status-badge" style="background:var(--bg-soft); color:var(--ink-faint); margin-right:6px;">🙈 ซ่อนอยู่</span>` : ''}
         <div class="case-time">${timeAgo(c.createdAt)}</div>
       </div>
     </div>
@@ -821,13 +839,15 @@ function detailOverlay(role){
         <button class="btn btn-primary" style="width:100%; margin-top:12px;" data-action="submit-update" data-id="${c.id}" data-role="staff">บันทึกอัปเดต</button>
       </div>
       <div style="margin-top:18px; text-align:center;">
+        <button class="btn btn-ghost" style="width:100%;" data-action="toggle-hide-case" data-id="${c.id}">${c.hidden ? '👁️ เลิกซ่อนเคสนี้' : '🙈 ซ่อนเคสนี้จากรายการ'}</button>
+        <div style="font-size:12px; color:var(--ink-faint); margin-top:6px;">ซ่อนแล้วข้อมูลและสถิติจะยังอยู่ครบ แค่ไม่โผล่ในรายการหลัก ติ๊ก "แสดงเคสที่ซ่อนไว้ด้วย" เพื่อดูอีกครั้ง</div>
         ${state.confirmDeleteId===c.id
-          ? `<div class="form-error" style="margin-bottom:8px;">ลบแล้วกู้คืนไม่ได้ ยืนยันลบเคสนี้จริงไหม?</div>
+          ? `<div class="form-error" style="margin:10px 0 8px;">ลบถาวรจะเอาเคสนี้ออกจากสถิติด้วย และกู้คืนไม่ได้ ยืนยันลบจริงไหม?</div>
              <div class="action-row">
                <button class="btn btn-ghost" data-action="cancel-delete">ไม่ลบ</button>
                <button class="btn" style="background:var(--coral); color:#fff;" data-action="confirm-delete" data-id="${c.id}">ยืนยันลบถาวร</button>
              </div>`
-          : `<button class="small-link" style="color:var(--coral);" data-action="ask-delete" data-id="${c.id}">🗑️ ลบเคสนี้ (เคสที่จบแล้ว)</button>`}
+          : `<button class="small-link" style="color:var(--coral); margin-top:10px;" data-action="ask-delete" data-id="${c.id}">ลบถาวร (ไม่แนะนำ — สถิติจะหายไปด้วย)</button>`}
       </div>`;
   }
   return `
@@ -952,6 +972,16 @@ async function handleAction(action, el){
     showToast('ขอบคุณสำหรับคะแนน! ⭐'); return;
   }
   if(action==='close-detail'){ state.activeCaseId=null; state.confirmDeleteId=null; render(); return; }
+  if(action==='toggle-show-hidden'){ state.staffFilter.showHidden = el.checked; render(); return; }
+  if(action==='toggle-hide-case'){
+    const id = el.dataset.id;
+    const idx = state.cases.findIndex(x=>x.id===id);
+    if(idx===-1) return;
+    const c = state.cases[idx];
+    c.hidden = !c.hidden;
+    try{ await saveCase(c); }catch(e){ c.hidden = !c.hidden; state.errors.update='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    showToast(c.hidden ? 'ซ่อนเคสแล้ว' : 'เลิกซ่อนเคสแล้ว'); return;
+  }
   if(action==='ask-delete'){ state.confirmDeleteId = el.dataset.id; render(); return; }
   if(action==='cancel-delete'){ state.confirmDeleteId = null; render(); return; }
   if(action==='confirm-delete'){

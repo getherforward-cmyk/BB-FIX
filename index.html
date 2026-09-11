@@ -296,12 +296,18 @@ let state = {
   submitting: false,
   errors: {},
   justSubmitted: false,
-  staffFilter: {status:'all', category:'all', q:'', showHidden:false},
-  trendMode: 'month'
+  staffFilter: {status:'all', category:'all', q:'', showHidden:false, mineOnly:false},
+  reporterFilter: {status:'all', q:''},
+  trendMode: 'month',
+  editingUpdateIdx: null
 };
 let draftReport = {category:'', images:[]};
 let draftUpdate = {text:'', images:[], status:null};
 let draftRating = {value:0, text:''};
+let draftEditText = '';
+let draftInternalNote = '';
+let draftImageEdit = null; // {caseId, images:[]}
+let draftReassign = null; // {caseId, name}
 let snapshotStarted = false;
 let _toastSeq = 0;
 function showToast(text){
@@ -524,13 +530,34 @@ function reportFormView(){
   `;
 }
 function myCases(){ return state.cases.filter(c=>c.reporterId===state.me.id); }
+function filteredMyCases(){
+  const f = state.reporterFilter;
+  const q = f.q.trim().toLowerCase();
+  return myCases().filter(c=>{
+    if(f.status!=='all' && c.status!==f.status) return false;
+    if(q){ const hay = (c.title+' '+c.location+' '+c.description).toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+}
 function myCasesView(){
   if(!state.casesLoaded) return `<div class="loading-line">กำลังโหลดเคสของคุณ...</div>`;
-  const list = myCases();
-  if(!list.length){
+  const all = myCases();
+  if(!all.length){
     return `<div class="empty-state">${mascotSvg('default',100)}<h3>ยังไม่มีเรื่องที่คุณแจ้งไว้</h3><p>กดแท็บ "แจ้งเรื่องใหม่" เพื่อเริ่มแจ้งปัญหาได้เลย</p></div>`;
   }
-  return list.map(c=>caseCard(c)).join('');
+  const f = state.reporterFilter;
+  const counts = { all: all.length, new: all.filter(c=>c.status==='new').length, in_progress: all.filter(c=>c.status==='in_progress').length, done: all.filter(c=>c.status==='done').length };
+  const list = filteredMyCases();
+  return `
+  <div class="search-box"><input id="myCasesSearch" class="text-input" type="text" placeholder="ค้นหาหัวข้อ สถานที่ หรือรายละเอียด" value="${escapeHtml(f.q)}"/></div>
+  <div class="chip-row" style="margin-bottom:14px;">
+    <button class="chip ${f.status==='all'?'chip-active':''}" data-action="reporter-filter-status" data-status="all">ทั้งหมด (${counts.all})</button>
+    <button class="chip ${f.status==='new'?'chip-active':''}" data-action="reporter-filter-status" data-status="new">🌱 รอดำเนินการ (${counts.new})</button>
+    <button class="chip ${f.status==='in_progress'?'chip-active':''}" data-action="reporter-filter-status" data-status="in_progress">🔧 กำลังทำ (${counts.in_progress})</button>
+    <button class="chip ${f.status==='done'?'chip-active':''}" data-action="reporter-filter-status" data-status="done">✅ เสร็จแล้ว (${counts.done})</button>
+  </div>
+  ${list.length ? list.map(c=>caseCard(c)).join('') : `<div class="empty-state">${mascotSvg('happy',90)}<h3>ไม่พบเคสที่ตรงกับตัวกรอง</h3><p>ลองเปลี่ยนคำค้นหรือตัวกรองดู</p></div>`}
+  `;
 }
 
 /* ============ Staff view ============ */
@@ -559,13 +586,20 @@ function staffView(){
       <button class="stat-chip ${state.staffFilter.status==='done'?'active':''}" data-action="staff-filter-status" data-status="done"><div class="stat-num">${counts.done}</div><div class="stat-label">เสร็จแล้ว</div></button>
     </div>
     <div class="search-box"><input id="staffSearch" class="text-input" type="text" placeholder="ค้นหาหัวข้อ สถานที่ หรือชื่อผู้แจ้ง" value="${escapeHtml(state.staffFilter.q)}"/></div>
-    <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-bottom:12px; cursor:pointer;">
+    <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-bottom:8px; cursor:pointer;">
       <input type="checkbox" id="showHiddenChk" data-action="toggle-show-hidden" ${state.staffFilter.showHidden?'checked':''} style="width:18px;height:18px;accent-color:var(--green-deep);"/>
       แสดงเคสที่ซ่อนไว้ด้วย${hiddenCount?` (ซ่อนอยู่ ${hiddenCount} เคส)`:''}
+    </label>
+    <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink-soft); margin-bottom:12px; cursor:pointer;">
+      <input type="checkbox" id="mineOnlyChk" data-action="toggle-mine-only" ${state.staffFilter.mineOnly?'checked':''} style="width:18px;height:18px;accent-color:var(--green-deep);"/>
+      แสดงเฉพาะงานที่มอบหมายให้ฉัน (${escapeHtml(state.me.name)})
     </label>
     <div class="chip-row" style="margin-bottom:14px;">
       <button class="chip ${state.staffFilter.category==='all'?'chip-active':''}" data-action="staff-filter-cat" data-cat="all">ทุกหมวด</button>
       ${CATEGORIES.map(c=>`<button class="chip ${state.staffFilter.category===c.key?'chip-active':''}" data-action="staff-filter-cat" data-cat="${c.key}"><span class="chip-icon">${c.icon}</span>${c.label}</button>`).join('')}
+    </div>
+    <div style="text-align:left; margin-bottom:14px;">
+      <button type="button" class="small-link" data-action="export-csv">⬇️ Export CSV (${filtered.length} รายการที่กรองอยู่)</button>
     </div>
     ${!state.casesLoaded ? `<div class="loading-line">กำลังโหลดเคสทั้งหมด...</div>` :
       filtered.length ? filtered.map(c=>caseCard(c,true)).join('') :
@@ -581,6 +615,7 @@ function filteredStaffCases(){
     if(!f.showHidden && c.hidden) return false;
     if(f.status!=='all' && c.status!==f.status) return false;
     if(f.category!=='all' && c.category!==f.category) return false;
+    if(f.mineOnly && c.assignedTo!==state.me.name) return false;
     if(q){ const hay = (c.title+' '+c.location+' '+c.reporterName+' '+c.description).toLowerCase(); if(!hay.includes(q)) return false; }
     return true;
   });
@@ -767,10 +802,141 @@ function caseCard(c, showReporter){
         <div class="case-meta">${cm.icon} ${cm.label}${c.location?' · '+escapeHtml(c.location):''}${showReporter?' · '+escapeHtml(c.reporterName):''}</div>
         <span class="status-badge ${sm.cls}">${sm.icon} ${sm.label}</span>
         ${c.hidden ? `<span class="status-badge" style="background:var(--bg-soft); color:var(--ink-faint); margin-right:6px;">🙈 ซ่อนอยู่</span>` : ''}
+        ${showReporter && c.assignedTo ? `<span class="status-badge" style="background:var(--bg-soft); color:var(--ink-soft); margin-right:6px;">👤 ${escapeHtml(c.assignedTo)}</span>` : ''}
         <div class="case-time">${timeAgo(c.createdAt)}</div>
       </div>
     </div>
   </button>`;
+}
+
+/* ============ Update card (with edit support) ============ */
+const REPORTER_EDIT_WINDOW_MS = 5*60*1000;
+function updateCardHtml(u, c, viewerRole){
+  const withinWindow = (Date.now() - new Date(u.timestamp).getTime()) <= REPORTER_EDIT_WINDOW_MS;
+  const canEditStaff = viewerRole==='staff' && u.role==='staff';
+  const canEditReporter = viewerRole==='reporter' && u.role==='reporter' && !!u.reporterId && !!state.me && u.reporterId===state.me.id && withinWindow;
+  const canEdit = canEditStaff || canEditReporter;
+  const isEditing = canEdit && state.editingUpdateIdx===u._idx;
+  const tag = `<span class="update-tag ${u.role==='staff'?'tag-staff':'tag-reporter'}">${u.role==='staff'?'🛠️ เจ้าหน้าที่':'🎒 ผู้แจ้ง'} · ${escapeHtml(u.by)}</span>`;
+  const gallery = u.images && u.images.length ? `<div class="gallery">${u.images.map(img=>`<button type="button" class="gallery-item" data-action="view-image" data-src="${img}"><img src="${img}" alt="รูปที่แนบ"/></button>`).join('')}</div>` : '';
+  if(isEditing){
+    return `
+    <div class="update-card role-${u.role}">
+      <div class="update-top">${tag}<span class="update-time">${fullDate(u.timestamp)}</span></div>
+      <textarea id="editUpdateText" class="text-input" rows="3">${escapeHtml(draftEditText)}</textarea>
+      ${state.errors.editUpdate ? `<div class="form-error">${escapeHtml(state.errors.editUpdate)}</div>` : ''}
+      ${gallery}
+      <div class="action-row" style="margin-top:10px;">
+        <button class="btn btn-ghost" data-action="cancel-edit-update">ยกเลิก</button>
+        <button class="btn btn-primary" data-action="save-edit-update" data-id="${c.id}" data-idx="${u._idx}">บันทึก</button>
+      </div>
+    </div>`;
+  }
+  return `
+    <div class="update-card role-${u.role}">
+      <div class="update-top">${tag}<span class="update-time">${fullDate(u.timestamp)}${u.editedAt?' · แก้ไขแล้ว':''}</span></div>
+      ${u.text?`<div class="update-text">${escapeHtml(u.text)}</div>`:''}
+      ${gallery}
+      ${canEdit ? `<div style="text-align:left; margin-top:8px;"><button type="button" class="small-link" data-action="edit-update" data-id="${c.id}" data-idx="${u._idx}">✏️ แก้ไขข้อความ</button></div>` : ''}
+    </div>`;
+}
+
+/* ============ Original report images (owner can edit/remove) ============ */
+function originalImagesBlock(c, role){
+  const isOwner = role==='reporter' && !!state.me && c.reporterId===state.me.id;
+  const editing = draftImageEdit && draftImageEdit.caseId===c.id;
+  if(editing){
+    return `
+    <div class="form-block" style="margin-top:10px;">
+      ${imagePreviewStrip(draftImageEdit.images,'editImages')}
+      ${draftImageEdit.images.length<4 ? `<label class="attach-btn">📷 เพิ่มรูป (สูงสุด 4 รูป)<input type="file" accept="image/*" multiple data-target="editImages"/></label>` : ''}
+      ${state.errors.editImages ? `<div class="form-error">${escapeHtml(state.errors.editImages)}</div>` : ''}
+      <div class="action-row" style="margin-top:10px;">
+        <button class="btn btn-ghost" data-action="cancel-edit-images">ยกเลิก</button>
+        <button class="btn btn-primary" data-action="save-edit-images" data-id="${c.id}">บันทึกรูปภาพ</button>
+      </div>
+    </div>`;
+  }
+  const gallery = c.images && c.images.length ? `<div class="gallery">${c.images.map(img=>`<button type="button" class="gallery-item" data-action="view-image" data-src="${img}"><img src="${img}" alt="รูปที่แนบ"/></button>`).join('')}</div>` : '';
+  const editLink = isOwner ? `<div style="text-align:left; margin-top:8px;"><button type="button" class="small-link" data-action="start-edit-images" data-id="${c.id}">✏️ แก้ไข/ลบรูปภาพ</button></div>` : '';
+  return gallery + editLink;
+}
+
+/* ============ Assignment (staff-only) ============ */
+function staffNamesList(){
+  const set = new Set();
+  state.cases.forEach(c=>{
+    if(c.assignedTo) set.add(c.assignedTo);
+    if(c.resolvedBy) set.add(c.resolvedBy);
+    (c.updates||[]).forEach(u=>{ if(u.role==='staff' && u.by) set.add(u.by); });
+  });
+  return Array.from(set);
+}
+function assignmentBlock(c){
+  const reassignVal = draftReassign && draftReassign.caseId===c.id ? draftReassign.name : '';
+  return `
+  <div class="reply-box" style="margin-top:14px;">
+    <label class="field-label">มอบหมายงาน</label>
+    <div style="font-size:14.5px; color:var(--ink); margin-bottom:10px;">${c.assignedTo ? '👤 มอบหมายให้ <b>'+escapeHtml(c.assignedTo)+'</b>' : 'ยังไม่ได้มอบหมายให้ใคร'}</div>
+    <div class="action-row" style="margin-bottom:12px;">
+      ${c.assignedTo!==state.me.name ? `<button class="btn btn-ghost" data-action="assign-to-me" data-id="${c.id}">🙋 รับเคสนี้</button>` : ''}
+      ${c.assignedTo ? `<button class="btn btn-ghost" data-action="unassign-case" data-id="${c.id}">เลิกมอบหมาย</button>` : ''}
+    </div>
+    <label class="field-label" for="reassignInput">มอบหมายให้คนอื่น</label>
+    <div style="display:flex; gap:8px;">
+      <input id="reassignInput" class="text-input" list="staffNamesDatalist" data-id="${c.id}" placeholder="พิมพ์ชื่อเจ้าหน้าที่" value="${escapeHtml(reassignVal)}"/>
+      <button type="button" class="btn btn-primary" style="width:auto; padding:13px 16px;" data-action="submit-reassign" data-id="${c.id}">บันทึก</button>
+    </div>
+    <datalist id="staffNamesDatalist">${staffNamesList().map(n=>`<option value="${escapeHtml(n)}"></option>`).join('')}</datalist>
+    ${state.errors.assign ? `<div class="form-error">${escapeHtml(state.errors.assign)}</div>` : ''}
+  </div>`;
+}
+
+/* ============ Internal notes (staff-only, never shown to reporter) ============ */
+function internalNotesBlock(c){
+  const notes = (c.internalNotes||[]).map((n,i)=>({...n,_idx:i})).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+  const notesHtml = notes.length ? notes.map(n=>`
+    <div class="update-card" style="border-left-color:var(--amber); background:var(--amber-bg);">
+      <div class="update-top">
+        <span class="update-tag" style="background:var(--amber); color:#fff;">🔒 ${escapeHtml(n.by)}</span>
+        <span class="update-time">${fullDate(n.timestamp)}</span>
+      </div>
+      <div class="update-text">${escapeHtml(n.text)}</div>
+      <div style="text-align:left; margin-top:6px;"><button type="button" class="small-link" data-action="delete-internal-note" data-id="${c.id}" data-idx="${n._idx}">🗑️ ลบโน้ตนี้</button></div>
+    </div>`).join('') : `<div class="divider-note">ยังไม่มีโน้ตภายใน</div>`;
+  return `
+  <div class="section-title" style="color:var(--amber);">🔒 โน้ตภายใน (เจ้าหน้าที่เห็นเท่านั้น)</div>
+  ${notesHtml}
+  <div class="reply-box" style="border-color:var(--amber);">
+    <textarea id="internalNoteText" class="text-input" rows="2" placeholder="โน้ตนี้ผู้แจ้งจะไม่เห็น...">${escapeHtml(draftInternalNote)}</textarea>
+    ${state.errors.internalNote ? `<div class="form-error">${escapeHtml(state.errors.internalNote)}</div>` : ''}
+    <button class="btn btn-primary" style="width:100%; margin-top:10px;" data-action="submit-internal-note" data-id="${c.id}">บันทึกโน้ต</button>
+  </div>`;
+}
+
+/* ============ CSV export ============ */
+function csvEscape(val){
+  const s = String(val==null?'':val);
+  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function exportCasesToCSV(cases){
+  const headers = ['รหัสเคส','หัวข้อ','หมวดหมู่','สถานที่','รายละเอียด','ผู้แจ้ง','สถานะ','ผู้รับผิดชอบ','แจ้งเมื่อ','คะแนน'];
+  const rows = cases.map(c=>[
+    c.id, c.title, (CAT_MAP[c.category]||{label:c.category}).label, c.location||'',
+    c.description||'', c.reporterName||'', (STATUS_META[c.status]||{label:c.status}).label,
+    c.assignedTo||'', fullDate(c.createdAt), c.rating||''
+  ]);
+  const csv = [headers, ...rows].map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'bb-fix-เคส-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
 
 /* ============ Detail overlay ============ */
@@ -779,16 +945,8 @@ function detailOverlay(role){
   if(!c) return '';
   const cm = CAT_MAP[c.category] || {label:c.category, icon:'📌'};
   const sm = STATUS_META[c.status] || STATUS_META.new;
-  const updates = (c.updates||[]).slice().sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
-  const updatesHtml = updates.length ? updates.map(u=>`
-      <div class="update-card role-${u.role}">
-        <div class="update-top">
-          <span class="update-tag ${u.role==='staff'?'tag-staff':'tag-reporter'}">${u.role==='staff'?'🛠️ เจ้าหน้าที่':'🎒 ผู้แจ้ง'} · ${escapeHtml(u.by)}</span>
-          <span class="update-time">${fullDate(u.timestamp)}</span>
-        </div>
-        ${u.text?`<div class="update-text">${escapeHtml(u.text)}</div>`:''}
-        ${u.images && u.images.length ? `<div class="gallery">${u.images.map(img=>`<button type="button" class="gallery-item" data-action="view-image" data-src="${img}"><img src="${img}" alt="รูปที่แนบ"/></button>`).join('')}</div>` : ''}
-      </div>`).join('') : `<div class="divider-note">ยังไม่มีความคืบหน้า</div>`;
+  const updates = (c.updates||[]).map((u,i)=>({...u, _idx:i})).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+  const updatesHtml = updates.length ? updates.map(u=>updateCardHtml(u,c,role)).join('') : `<div class="divider-note">ยังไม่มีความคืบหน้า</div>`;
   let replyBlock = '';
   if(role==='reporter'){
     let quickActions = '';
@@ -857,18 +1015,20 @@ function detailOverlay(role){
       <div class="detail-cat">${cm.icon}</div>
       <div style="flex:1;">
         <div class="detail-title">${escapeHtml(c.title)}</div>
-        <div class="detail-sub">${cm.label}${c.location?' · '+escapeHtml(c.location):''}${role==='staff'?' · แจ้งโดย '+escapeHtml(c.reporterName):''}</div>
+        <div class="detail-sub">${cm.label}${c.location?' · '+escapeHtml(c.location):''}${role==='staff'?' · แจ้งโดย '+escapeHtml(c.reporterName):''}${c.assignedTo?' · ดูแลโดย '+escapeHtml(c.assignedTo):''}</div>
         <div style="margin-top:6px;"><span class="status-badge ${sm.cls}">${sm.icon} ${sm.label}</span></div>
       </div>
     </div>
     <div class="content">
       <div class="section-title">รายละเอียดที่แจ้ง</div>
       <div class="desc-box">${escapeHtml(c.description)}</div>
-      ${c.images && c.images.length ? `<div class="gallery">${c.images.map(img=>`<button type="button" class="gallery-item" data-action="view-image" data-src="${img}"><img src="${img}" alt="รูปที่แนบ"/></button>`).join('')}</div>` : ''}
+      ${originalImagesBlock(c, role)}
       <div class="detail-sub" style="margin-top:8px;">แจ้งเมื่อ ${fullDate(c.createdAt)}</div>
+      ${role==='staff' ? assignmentBlock(c) : ''}
       <div class="section-title">อัปเดตความคืบหน้า</div>
       ${updatesHtml}
       ${replyBlock}
+      ${role==='staff' ? internalNotesBlock(c) : ''}
     </div>
     <div class="bottom-space"></div>
   </div>`;
@@ -917,9 +1077,85 @@ async function handleAction(action, el){
   if(action==='goto-mine'){ state.reporterTab='mine'; state.justSubmitted=false; render(); return; }
   if(action==='select-category'){ if(el.dataset.target==='report') draftReport.category = el.dataset.cat; render(); return; }
   if(action==='remove-image'){
-    const draft = el.dataset.target==='report' ? draftReport : draftUpdate;
+    const t = el.dataset.target;
+    const draft = t==='report' ? draftReport : t==='editImages' ? draftImageEdit : draftUpdate;
+    if(!draft) return;
     draft.images.splice(parseInt(el.dataset.idx,10),1);
     render(); return;
+  }
+  if(action==='reporter-filter-status'){ state.reporterFilter.status = el.dataset.status; render(); return; }
+  if(action==='toggle-mine-only'){ state.staffFilter.mineOnly = el.checked; render(); return; }
+  if(action==='export-csv'){ exportCasesToCSV(filteredStaffCases()); return; }
+  if(action==='assign-to-me'){
+    const id = el.dataset.id;
+    const c = state.cases.find(x=>x.id===id);
+    if(!c) return;
+    c.assignedTo = state.me.name; c.assignedAt = new Date().toISOString();
+    state.errors.assign = null;
+    try{ await saveCase(c); }catch(e){ state.errors.assign='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    showToast('รับเคสนี้แล้ว'); return;
+  }
+  if(action==='unassign-case'){
+    const id = el.dataset.id;
+    const c = state.cases.find(x=>x.id===id);
+    if(!c) return;
+    c.assignedTo = null; c.assignedAt = null;
+    state.errors.assign = null;
+    try{ await saveCase(c); }catch(e){ state.errors.assign='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    showToast('เลิกมอบหมายแล้ว'); return;
+  }
+  if(action==='submit-reassign'){
+    const id = el.dataset.id;
+    const c = state.cases.find(x=>x.id===id);
+    if(!c) return;
+    const name = (draftReassign && draftReassign.caseId===id ? draftReassign.name : '').trim();
+    if(!name){ state.errors.assign='กรอกชื่อก่อนนะ'; render(); return; }
+    c.assignedTo = name; c.assignedAt = new Date().toISOString();
+    state.errors.assign = null;
+    try{ await saveCase(c); }catch(e){ state.errors.assign='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    draftReassign = null;
+    showToast('มอบหมายงานแล้ว'); return;
+  }
+  if(action==='start-edit-images'){
+    const id = el.dataset.id;
+    const c = state.cases.find(x=>x.id===id);
+    if(!c) return;
+    draftImageEdit = {caseId: id, images: (c.images||[]).slice()};
+    state.errors.editImages = null;
+    render(); return;
+  }
+  if(action==='cancel-edit-images'){ draftImageEdit = null; state.errors.editImages=null; render(); return; }
+  if(action==='save-edit-images'){
+    const id = el.dataset.id;
+    const c = state.cases.find(x=>x.id===id);
+    if(!c || !draftImageEdit || draftImageEdit.caseId!==id) return;
+    c.images = draftImageEdit.images.slice();
+    state.errors.editImages = null;
+    try{ await saveCase(c); }catch(e){ state.errors.editImages='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    draftImageEdit = null;
+    showToast('บันทึกรูปภาพแล้ว'); return;
+  }
+  if(action==='submit-internal-note'){
+    const id = el.dataset.id;
+    const c = state.cases.find(x=>x.id===id);
+    if(!c) return;
+    const val = document.getElementById('internalNoteText') ? document.getElementById('internalNoteText').value.trim() : draftInternalNote.trim();
+    if(!val){ state.errors.internalNote='พิมพ์โน้ตก่อนนะ'; render(); return; }
+    c.internalNotes = c.internalNotes || [];
+    c.internalNotes.push({by: state.me.name, text: val, timestamp: new Date().toISOString()});
+    state.errors.internalNote = null;
+    try{ await saveCase(c); }catch(e){ state.errors.internalNote='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    draftInternalNote = '';
+    showToast('บันทึกโน้ตแล้ว'); return;
+  }
+  if(action==='delete-internal-note'){
+    const id = el.dataset.id;
+    const idx = parseInt(el.dataset.idx,10);
+    const c = state.cases.find(x=>x.id===id);
+    if(!c || !c.internalNotes || !c.internalNotes[idx]) return;
+    c.internalNotes.splice(idx,1);
+    try{ await saveCase(c); }catch(e){ state.errors.internalNote='ลบไม่สำเร็จ ลองใหม่'; render(); return; }
+    showToast('ลบโน้ตแล้ว'); return;
   }
   if(action==='submit-report'){
     draftReport.title = document.getElementById('reportTitle').value.trim();
@@ -948,7 +1184,45 @@ async function handleAction(action, el){
     const c = state.cases.find(x=>x.id===state.activeCaseId);
     draftUpdate = {text:'', images:[], status: c?c.status:null};
     draftRating = {value:0, text:''};
-    state.errors.update=null; state.errors.rating=null; state.confirmDeleteId=null; render(); return;
+    state.editingUpdateIdx = null; draftEditText='';
+    draftImageEdit = null; draftReassign = null; draftInternalNote = '';
+    state.errors.update=null; state.errors.rating=null; state.errors.editUpdate=null;
+    state.errors.assign=null; state.errors.editImages=null; state.errors.internalNote=null;
+    state.confirmDeleteId=null; render(); return;
+  }
+  if(action==='edit-update'){
+    const id = el.dataset.id;
+    const idx = parseInt(el.dataset.idx,10);
+    const c = state.cases.find(x=>x.id===id);
+    if(!c || !c.updates || !c.updates[idx]) return;
+    state.editingUpdateIdx = idx;
+    draftEditText = c.updates[idx].text || '';
+    state.errors.editUpdate = null;
+    render(); return;
+  }
+  if(action==='cancel-edit-update'){
+    state.editingUpdateIdx = null; draftEditText=''; state.errors.editUpdate=null; render(); return;
+  }
+  if(action==='save-edit-update'){
+    const id = el.dataset.id;
+    const idx = parseInt(el.dataset.idx,10);
+    const c = state.cases.find(x=>x.id===id);
+    if(!c || !c.updates || !c.updates[idx]) return;
+    const u = c.updates[idx];
+    if(u.role==='reporter'){
+      const withinWindow = (Date.now() - new Date(u.timestamp).getTime()) <= REPORTER_EDIT_WINDOW_MS;
+      if(!state.me || u.reporterId!==state.me.id || !withinWindow){
+        state.editingUpdateIdx = null; draftEditText=''; render(); return;
+      }
+    }
+    const val = draftEditText.trim();
+    if(!val && !(u.images && u.images.length)){ state.errors.editUpdate='ข้อความต้องไม่ว่างนะ'; render(); return; }
+    u.text = val;
+    u.editedAt = new Date().toISOString();
+    state.errors.editUpdate = null;
+    try{ await saveCase(c); }catch(e){ state.errors.editUpdate='บันทึกไม่สำเร็จ ลองใหม่'; render(); return; }
+    state.editingUpdateIdx = null; draftEditText='';
+    showToast('แก้ไขข้อความแล้ว'); return;
   }
   if(action==='select-rating'){ draftRating.value = parseInt(el.dataset.value,10); render(); return; }
   if(action==='submit-rating'){
@@ -971,7 +1245,7 @@ async function handleAction(action, el){
     draftRating = {value:0, text:''};
     showToast('ขอบคุณสำหรับคะแนน! ⭐'); return;
   }
-  if(action==='close-detail'){ state.activeCaseId=null; state.confirmDeleteId=null; render(); return; }
+  if(action==='close-detail'){ state.activeCaseId=null; state.confirmDeleteId=null; state.editingUpdateIdx=null; draftEditText=''; draftImageEdit=null; draftReassign=null; draftInternalNote=''; render(); return; }
   if(action==='toggle-show-hidden'){ state.staffFilter.showHidden = el.checked; render(); return; }
   if(action==='toggle-hide-case'){
     const id = el.dataset.id;
@@ -1009,6 +1283,7 @@ async function handleAction(action, el){
       const text = document.getElementById('updateText') ? document.getElementById('updateText').value.trim() : draftUpdate.text.trim();
       if(!text && draftUpdate.images.length===0){ state.errors.update='เขียนข้อความหรือแนบรูปก่อนนะ'; render(); return; }
       update = {by: state.me.name, role, text, images: draftUpdate.images.slice(), timestamp:new Date().toISOString()};
+      if(role==='reporter') update.reporterId = state.me.id;
       if(role==='staff' && draftUpdate.status){
         c.status = draftUpdate.status;
         if(draftUpdate.status==='done') c.resolvedBy = state.me.name;
@@ -1029,7 +1304,8 @@ async function handleFileInput(input){
   const target = input.dataset.target;
   const files = Array.from(input.files || []);
   if(!files.length) return;
-  const draft = target==='report' ? draftReport : draftUpdate;
+  const draft = target==='report' ? draftReport : target==='editImages' ? draftImageEdit : draftUpdate;
+  if(!draft) return;
   const room = Math.max(4 - draft.images.length, 0);
   const toProcess = files.slice(0, room);
   for(const f of toProcess){
@@ -1053,13 +1329,18 @@ document.getElementById('app').addEventListener('input', (e)=>{
   else if(t.id==='reportLocation') draftReport.location = t.value;
   else if(t.id==='reportDesc') draftReport.description = t.value;
   else if(t.id==='updateText') draftUpdate.text = t.value;
+  else if(t.id==='editUpdateText') draftEditText = t.value;
   else if(t.id==='ratingText') draftRating.text = t.value;
   else if(t.id==='staffSearch'){ state.staffFilter.q = t.value; render(); }
+  else if(t.id==='myCasesSearch'){ state.reporterFilter.q = t.value; render(); }
+  else if(t.id==='reassignInput'){ draftReassign = {caseId: t.dataset.id, name: t.value}; }
+  else if(t.id==='internalNoteText') draftInternalNote = t.value;
 });
 
 /* ============ Init ============ */
 loadMe();
 render();
+setInterval(()=>{ if(state.activeCaseId) render(); }, 20000);
 </script>
 </body>
 </html>

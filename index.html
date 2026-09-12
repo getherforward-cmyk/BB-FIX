@@ -138,6 +138,20 @@
   .star-row{display:flex; gap:6px; justify-content:center;}
   .star-btn{background:none; border:none; font-size:34px; line-height:1; color:var(--amber); padding:2px;}
   .star-row.static{font-size:26px; color:var(--amber); gap:3px;}
+
+  /* ---------- desktop / wide screens ---------- */
+  @media (min-width:860px){
+    body{background:#D7E9DB;}
+    .shell{
+      max-width:760px; background:var(--bg);
+      box-shadow:0 0 0 1px rgba(31,110,67,.06),0 24px 60px rgba(31,110,67,.16);
+      margin:28px auto; min-height:calc(100vh - 56px); border-radius:24px; overflow:hidden;
+    }
+    .overlay{
+      max-width:760px; top:28px; bottom:28px; height:auto;
+      border-radius:24px; box-shadow:0 0 0 1px rgba(31,110,67,.06),0 24px 60px rgba(31,110,67,.22);
+    }
+  }
 </style>
 </head>
 <body>

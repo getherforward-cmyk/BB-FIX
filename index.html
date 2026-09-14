@@ -381,14 +381,17 @@ function render(){
     focusId = active.id;
     if('selectionStart' in active){ try{ selStart=active.selectionStart; selEnd=active.selectionEnd; }catch(e){} }
   }
+  const scrollX = window.scrollX, scrollY = window.scrollY;
   app.innerHTML = screenHtml() + toastHtml() + lightboxHtml();
   if(focusId){
     const el = document.getElementById(focusId);
     if(el){
-      el.focus();
+      el.focus({preventScroll:true});
       if(selStart!=null && 'setSelectionRange' in el){ try{ el.setSelectionRange(selStart, selEnd); }catch(e){} }
     }
   }
+  window.scrollTo(scrollX, scrollY);
+  requestAnimationFrame(()=>window.scrollTo(scrollX, scrollY));
 }
 function lightboxHtml(){
   if(!state.viewingImage) return '';

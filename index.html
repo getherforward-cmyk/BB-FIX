@@ -373,6 +373,38 @@ async function deleteCaseDoc(id){
 }
 
 /* ============ Render engine (focus-preserving) ============ */
+let _scrollPinTimer=null, _scrollPinRAF=null, _scrollPinUntil=0;
+function applyScroll(x,y,overlayTop){
+  window.scrollTo(x,y);
+  if(overlayTop!=null){
+    // The overlay div is destroyed and recreated on every render, so its
+    // scrollTop always starts at 0 on the new node — re-query it fresh
+    // each time and re-apply the saved position.
+    const ov = document.querySelector('#app .overlay');
+    if(ov) ov.scrollTop = overlayTop;
+  }
+}
+function pinScroll(x,y,overlayTop){
+  // Re-apply the scroll position repeatedly for a short window to survive
+  // delayed reflows caused by the mobile keyboard closing (common in
+  // in-app browsers like LINE) after an async save completes.
+  if(_scrollPinTimer) clearInterval(_scrollPinTimer);
+  if(_scrollPinRAF) cancelAnimationFrame(_scrollPinRAF);
+  _scrollPinUntil = Date.now() + 700;
+  const tick=()=>{
+    applyScroll(x,y,overlayTop);
+    if(Date.now() < _scrollPinUntil){ _scrollPinRAF = requestAnimationFrame(tick); }
+  };
+  tick();
+  _scrollPinTimer = setInterval(()=>applyScroll(x,y,overlayTop), 60);
+  setTimeout(()=>{ if(_scrollPinTimer){ clearInterval(_scrollPinTimer); _scrollPinTimer=null; } }, 700);
+  const vv = window.visualViewport;
+  if(vv){
+    const onVV=()=>applyScroll(x,y,overlayTop);
+    vv.addEventListener('resize', onVV);
+    setTimeout(()=>vv.removeEventListener('resize', onVV), 700);
+  }
+}
 function render(){
   const app = document.getElementById('app');
   const active = document.activeElement;
@@ -382,6 +414,8 @@ function render(){
     if('selectionStart' in active){ try{ selStart=active.selectionStart; selEnd=active.selectionEnd; }catch(e){} }
   }
   const scrollX = window.scrollX, scrollY = window.scrollY;
+  const existingOverlay = app.querySelector('.overlay');
+  const overlayTop = existingOverlay ? existingOverlay.scrollTop : null;
   app.innerHTML = screenHtml() + toastHtml() + lightboxHtml();
   if(focusId){
     const el = document.getElementById(focusId);
@@ -390,8 +424,8 @@ function render(){
       if(selStart!=null && 'setSelectionRange' in el){ try{ el.setSelectionRange(selStart, selEnd); }catch(e){} }
     }
   }
-  window.scrollTo(scrollX, scrollY);
-  requestAnimationFrame(()=>window.scrollTo(scrollX, scrollY));
+  applyScroll(scrollX, scrollY, overlayTop);
+  pinScroll(scrollX, scrollY, overlayTop);
 }
 function lightboxHtml(){
   if(!state.viewingImage) return '';
